@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 
 interface UserProps {
+    id : string;
     email: string;
     name: string;
     password: string;
@@ -13,7 +14,7 @@ export function GetCurrentUser()
 {
     const router = useRouter();
     const [user, setUser] = useState<UserProps>(
-        {email: "", name: "", password: ""})
+        {id: "", email: "", name: "", password: ""})
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -28,7 +29,8 @@ export function GetCurrentUser()
                 if (snapshot.exists())
                 {
                     const userData = snapshot.data();
-                    setUser({name : userData.name,
+                    setUser({id : uid,
+                        name : userData.name,
                         email : userData.email,
                         password : userData.password})
                 }
