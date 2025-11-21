@@ -4,6 +4,7 @@ import { signOut } from 'firebase/auth';
 import { useRouter } from "next/navigation";
 import { GetCurrentUser } from "@/utils/CurrentUser";
 import Header from "@/components/header";
+import {MessageList} from "@/components/messageList";
 
 export default function Main()
 {
@@ -28,6 +29,9 @@ export default function Main()
                     <br></br>
                     <label>Your email is {user.email}</label>
                 </div>
+            </div>
+            <div>
+                {MessageList(user)}
             </div>
         </>
     );
