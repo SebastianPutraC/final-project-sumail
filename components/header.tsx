@@ -15,6 +15,8 @@ export default function Header()
                         className='buttonStyle'>Login</button>
                 <button onClick={() => router.push(`/register`)}
                         className='buttonStyle'>Register</button>
+                <button onClick={() => router.push(`/user/compose`)}
+                        className='buttonStyle'>Compose</button>
             </div>
     )
 }
