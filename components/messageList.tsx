@@ -53,8 +53,8 @@ export function MessageList (user:  {
         });
     }, [user.id]);
 
-    const viewDetail= (postsId : string) =>{
-        router.push(`/posts/${postsId}`)
+    const viewDetail= (messageId : string) =>{
+        router.push(`/user/message/${messageId}`)
     }
 
     return(
