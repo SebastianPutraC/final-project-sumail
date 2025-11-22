@@ -11,7 +11,7 @@ interface MessageProps {
     receiverId: string;
     title: string;
     content: string;
-    sentDate: string;
+    sentDate: Date;
 }
 
 export function MessageList (user:  {
@@ -25,13 +25,13 @@ export function MessageList (user:  {
     const [messages, setMessages] = useState<MessageProps[]>([]);
     const [errorMessage, setErrorMessage] = useState<string>("");
 
-    const filterMessage = (messages: MessageProps[], receiveId : string) =>
+    const sortFilterMessage = (messages: MessageProps[], receiveId : string) =>
     {
-        return messages.filter(item => item.receiverId === receiveId);
+        const filteredMessage = messages.filter(item => item.receiverId === receiveId);
+        return filteredMessage.sort((a, b) => b.sentDate.getDate() - a.sentDate.getDate());
     }
 
     useEffect( () => {
-        console.log("TEST");
         onSnapshot(collection(firebase.db, "messages"), (snapshot) => {
             const messageArray =
                 snapshot.docs.map((document) => {
@@ -42,10 +42,10 @@ export function MessageList (user:  {
                     receiverId: document.data().receiverId,
                     title: document.data().title,
                     content: document.data().content,
-                    sentDate: document.data().sentDate.toDate().toLocaleDateString()};
+                    sentDate: document.data().sentDate.toDate()};
             });
 
-            setMessages(filterMessage(messageArray, user.id));
+            setMessages(sortFilterMessage(messageArray, user.id));
 
         }, error => {
             setErrorMessage(error.message);
@@ -74,7 +74,7 @@ export function MessageList (user:  {
                         <tr key={message.id}>
                             <td>{message.senderId}</td>
                             <td>{message.title}</td>
-                            <td>{message.sentDate}</td>
+                            <td>{message.sentDate.toLocaleDateString()}</td>
                             <td>
                                 <button onClick={() => viewDetail(message.id)}>
                                     Message Details
