@@ -2,7 +2,7 @@
 
 import firebase from  "../firebase/firebaseConfig"
 import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from "firebase/auth";
-import { setDoc, doc } from "firebase/firestore";
+import { setDoc, doc, serverTimestamp } from "firebase/firestore";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -57,6 +57,7 @@ export default function RegisterForm()
                         name: registerForm.name,
                         email: user.email,
                         password: registerForm.password,
+                        joinedDate : serverTimestamp(),
                     })
 
                     signInWithEmailAndPassword(firebase.auth,
