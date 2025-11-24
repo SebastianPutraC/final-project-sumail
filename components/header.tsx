@@ -2,9 +2,11 @@
 
 import React from "react";
 import {useRouter} from "next/navigation";
+import {GetCurrentUser} from "@/utils/CurrentUser";
 
 export default function Header()
 {
+    const {user, loading} = GetCurrentUser();
     const router = useRouter();
 
     return(
@@ -17,6 +19,8 @@ export default function Header()
                         className='buttonStyle'>Register</button>
                 <button onClick={() => router.push(`/user/compose`)}
                         className='buttonStyle'>Compose</button>
+                <button onClick={() => router.push(`/user/profile/${user.id}`)}
+                        className='buttonStyle'>Profile</button>
             </div>
     )
 }
