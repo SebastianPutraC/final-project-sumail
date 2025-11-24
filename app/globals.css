@@ -24,3 +24,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.userForm {
+    border-radius: 25px;
+    border: 2px solid #73AD21;
+    padding: 20px;
+    width: 300px;
+}
