@@ -66,7 +66,8 @@ export default function ComposeForm()
                     receiverId: composeForm.receiverId,
                     title: composeForm.title,
                     content: composeForm.content,
-                    sentDate: Timestamp.fromDate(new Date())
+                    sentDate: Timestamp.fromDate(new Date()),
+                    starredId: ["0"],
                 });
 
                 const docSnap = await getDoc(docRef);

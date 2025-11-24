@@ -2,7 +2,7 @@
 
 import firebase from  "../firebase/firebaseConfig"
 import {useState, useEffect} from "react";
-import {onSnapshot, collection, updateDoc, getDoc} from "firebase/firestore";
+import {onSnapshot, collection, updateDoc, getDoc, arrayUnion, arrayRemove} from "firebase/firestore";
 import {useRouter} from "next/navigation";
 import { doc } from "firebase/firestore";
 
@@ -13,8 +13,7 @@ interface MessageProps {
     title: string;
     content: string;
     sentDate: Date;
-    isReceiverStar : boolean;
-    isSenderStar : boolean;
+    starred: boolean;
 }
 
 export function MessageList (user:  {
@@ -36,10 +35,11 @@ export function MessageList (user:  {
         {
             case 0: //Receive
                 filteredMessage = messages.filter(item => item.receiverId === receiveId);
+
                 filteredMessage.sort((a, b) =>
                 {
-                    if (a.isReceiverStar !== b.isReceiverStar) {
-                        return a.isReceiverStar ? -1 : 1;
+                    if (a.starred !== b.starred) {
+                        return a.starred ? -1 : 1;
                     }
                     return b.sentDate.getDate() - a.sentDate.getDate()
                 });
@@ -48,16 +48,15 @@ export function MessageList (user:  {
                 filteredMessage = messages.filter(item => item.senderId === senderId);
                 filteredMessage.sort((a, b) =>
                 {
-                    if (a.isSenderStar !== b.isSenderStar) {
-                        return a.isSenderStar ? -1 : 1;
+                    if (a.starred !== b.starred) {
+                        return a.starred ? -1 : 1;
                     }
                     return b.sentDate.getDate() - a.sentDate.getDate()
                 });
                 break;
             case 2: //Starred
-                filteredMessage = messages.filter(item => (
-                    ((item.receiverId === receiveId && item.isReceiverStar)
-                        || item.senderId === senderId && item.isSenderStar)));
+                filteredMessage = messages.filter(item =>
+                    (item.receiverId === receiveId || item.senderId === senderId) && item.starred);
                 filteredMessage.sort((a, b) =>
                 {
                     return b.sentDate.getDate() - a.sentDate.getDate()
@@ -81,8 +80,7 @@ export function MessageList (user:  {
                     title: document.data().title,
                     content: document.data().content,
                     sentDate: document.data().sentDate.toDate(),
-                    isSenderStar: document.data().isSenderStar,
-                    isReceiverStar: document.data().isReceiverStar,
+                    starred : document.data().starredId.includes(user.id),
                 }
             });
 
@@ -98,10 +96,10 @@ export function MessageList (user:  {
         router.push(`/user/message/${messageId}`)
     }
 
-    async function handleStar(documentId : string,  categoryType : number)
+    async function handleStar(documentId : string)
     {
-        const docRef = doc(firebase.db, "messages", documentId);
         try {
+            const docRef = doc(firebase.db, "messages", documentId);
             const docInfo = await getDoc(docRef)
 
             if (!docInfo.exists())
@@ -110,39 +108,19 @@ export function MessageList (user:  {
             }
             else
             {
-                switch (categoryType)
+                const starredArray : string[] = docInfo.data().starredId;
+
+                if (starredArray.includes(user.id))
                 {
-                    case 0: //Receive
-                        if (docInfo.data().isReceiverStar)
-                            await updateDoc(docRef, { isReceiverStar : false});
-                        else
-                            await updateDoc(docRef, { isReceiverStar : true});
-                        break;
-                    case 1: //Sent
-                        if (docInfo.data().isSenderStar)
-                            await updateDoc(docRef, { isSenderStar : false});
-                        else
-                            await updateDoc(docRef, { isSenderStar : true});
-                        break;
-                    case 2: //Starred
-                        if (docInfo.data().receiverId === user.id)
-                        {
-                            if (docInfo.data().isReceiverStar)
-                                await updateDoc(docRef, { isReceiverStar : false});
-                            else
-                                await updateDoc(docRef, { isReceiverStar : true});
-                            break;
-                        }
-                        else if (docInfo.data().senderId === user.id)
-                        {
-                            if (docInfo.data().isSenderStar)
-                                await updateDoc(docRef, { isSenderStar : false});
-                            else
-                                await updateDoc(docRef, { isSenderStar : true});
-                            break;
-                        }
-                    default:
-                        break;
+                    await updateDoc(docRef, {
+                        starredId: arrayRemove(user.id)
+                    });
+                }
+                else
+                {
+                    await updateDoc(docRef, {
+                        starredId: arrayUnion(user.id)
+                    });
                 }
             }
             console.log("Document successfully updated!");
@@ -182,9 +160,8 @@ export function MessageList (user:  {
                                 </button>
                             </td>
                             <td>
-                                <button onClick={() => handleStar(message.id, type)}>
-                                    {(message.receiverId === user.id && message.isReceiverStar)
-                                        || message.senderId === user.id && message.isSenderStar ? (
+                                <button onClick={() => handleStar(message.id)}>
+                                    {(message.starred) ? (
                                         <p>Unstar Message</p>
                                     ) : (
                                         <p>Star Message</p>
