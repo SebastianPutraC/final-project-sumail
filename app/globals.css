@@ -1,3 +1,7 @@
+@import url("https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap");
+@import "react-toastify/dist/ReactToastify.css";
+
 @import "tailwindcss";
 
 :root {
@@ -8,26 +12,13 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: "Roboto", Arial, Helvetica, sans-serif;
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-pixelify: "Pixelify Sans", "sans-serif";
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-.userForm {
-    border-radius: 25px;
-    border: 2px solid #73AD21;
-    padding: 20px;
-    width: 300px;
+  font-family: var(--font-sans);
 }
