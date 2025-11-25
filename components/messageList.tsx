@@ -1,10 +1,14 @@
 'use client'
 
 import firebase from  "../firebase/firebaseConfig"
-import {useState, useEffect} from "react";
+import {useState, useEffect, ChangeEvent} from "react";
 import {onSnapshot, collection, updateDoc, getDoc, arrayUnion, arrayRemove} from "firebase/firestore";
 import {useRouter} from "next/navigation";
 import { doc } from "firebase/firestore";
+
+interface CheckboxProps {
+    [key: string]: boolean | undefined;
+}
 
 interface MessageProps {
     id: string;
@@ -27,6 +31,7 @@ export function MessageList (user:  {
     const [messages, setMessages] = useState<MessageProps[]>([]);
     const [errorMessage, setErrorMessage] = useState<string>("");
     const [type, setType] = useState(0);
+    const [checkedCheckboxes, setCheckedCheckboxes] = useState<string[]>([]);
 
     const sortFilterMessage = (messages: MessageProps[], receiveId : string, senderId : string, categoryType : number) =>
     {
@@ -80,7 +85,7 @@ export function MessageList (user:  {
                     title: document.data().title,
                     content: document.data().content,
                     sentDate: document.data().sentDate.toDate(),
-                    starred : document.data().starredId.includes(user.id),
+                    starred : document.data().starredId?.includes(user.id),
                 }
             });
 
@@ -96,39 +101,47 @@ export function MessageList (user:  {
         router.push(`/user/message/${messageId}`)
     }
 
-    async function handleStar(documentId : string)
+    async function handleStar(documentId : string[])
     {
         try {
-            const docRef = doc(firebase.db, "messages", documentId);
-            const docInfo = await getDoc(docRef)
-
-            if (!docInfo.exists())
+            for (let i = 0; i < documentId.length; i++)
             {
-                throw new Error("No Message Found")
-            }
-            else
-            {
-                const starredArray : string[] = docInfo.data().starredId;
+                const docRef = doc(firebase.db, "messages", documentId[i]);
+                const docInfo = await getDoc(docRef)
 
-                if (starredArray.includes(user.id))
-                {
-                    await updateDoc(docRef, {
-                        starredId: arrayRemove(user.id)
-                    });
+                if (!docInfo.exists()) {
+                    throw new Error("No Message Found")
                 }
-                else
-                {
-                    await updateDoc(docRef, {
-                        starredId: arrayUnion(user.id)
-                    });
-                }
-            }
-            console.log("Document successfully updated!");
+                else {
+                    const starredArray : string[] = docInfo.data().starredId;
 
+                    if (starredArray.includes(user.id)) {
+                        await updateDoc(docRef, {
+                            starredId: arrayRemove(user.id)
+                        });
+                    }
+                    else {
+                        await updateDoc(docRef, {
+                            starredId: arrayUnion(user.id)
+                        });
+                    }
+                }
+                console.log(`Document successfully updated! : ${documentId[i]}`);
+            }
         } catch (error) {
             console.error("Error updating document: ", error);
         }
     }
+
+    const handleCheckboxChange = (event : ChangeEvent<HTMLInputElement>) => {
+        const checkedId = event.target.value;
+        if(event.target.checked){
+            setCheckedCheckboxes([...checkedCheckboxes, checkedId])
+        }else{
+            setCheckedCheckboxes(checkedCheckboxes.filter(id=>id !== checkedId))
+        }
+    }
+
 
     return(
         <>
@@ -141,6 +154,7 @@ export function MessageList (user:  {
                 <table>
                     <thead>
                     <tr>
+                        <th>Checkbox</th>
                         <th>Sender Id</th>
                         <th>Title</th>
                         <th>Sent Date</th>
@@ -151,6 +165,12 @@ export function MessageList (user:  {
                     <tbody>
                     {messages.map(message=> (
                         <tr key={message.id}>
+                            <td>
+                                <input
+                                    type="checkbox" value={message.id} checked={checkedCheckboxes.includes(message.id)}
+                                    onChange={(event) => { handleCheckboxChange(event) }}
+                                />
+                            </td>
                             <td>{message.senderId}</td>
                             <td>{message.title}</td>
                             <td>{message.sentDate.toLocaleDateString()}</td>
@@ -160,7 +180,7 @@ export function MessageList (user:  {
                                 </button>
                             </td>
                             <td>
-                                <button onClick={() => handleStar(message.id)}>
+                                <button onClick={() => handleStar([message.id])}>
                                     {(message.starred) ? (
                                         <p>Unstar Message</p>
                                     ) : (
@@ -172,6 +192,9 @@ export function MessageList (user:  {
                     ))}
                     </tbody>
                 </table>
+                <button onClick={() => handleStar(checkedCheckboxes)}>
+                    Star All Selected
+                </button>
             </div>
         </>
     )
