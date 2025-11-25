@@ -5,6 +5,7 @@ import {doc, getDoc, updateDoc} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import firebase from "../firebase/firebaseConfig"
 import { useRouter } from "next/navigation";
+import {signOut} from "firebase/auth";
 
 interface UserProps {
     id : string;
@@ -84,6 +85,10 @@ export default function ProfileDetail(slug : SlugProps)
         }
     }
 
+    const logoutUser = async () => {
+        await signOut(firebase.auth);
+    }
+
     useEffect( () => {
         const getDetail = async () =>
         {
@@ -145,6 +150,8 @@ export default function ProfileDetail(slug : SlugProps)
                 <button onClick={handleNameChange}>
                     Change Name
                 </button>
+                <br></br>
+                <button onClick={logoutUser}>Logout</button>
             </div>
         </>
     )
