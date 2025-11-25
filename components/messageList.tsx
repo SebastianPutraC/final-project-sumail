@@ -6,10 +6,6 @@ import {onSnapshot, collection, updateDoc, getDoc, arrayUnion, arrayRemove} from
 import {useRouter} from "next/navigation";
 import { doc } from "firebase/firestore";
 
-interface CheckboxProps {
-    [key: string]: boolean | undefined;
-}
-
 interface MessageProps {
     id: string;
     senderId: string;
