@@ -1,7 +1,8 @@
 'use client'
 
-import {useEffect, useState} from "react";
-import {doc, getDoc} from "firebase/firestore";
+import React, {useEffect, useRef, useState} from "react";
+import {doc, getDoc, updateDoc} from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import firebase from "../firebase/firebaseConfig"
 
 interface UserProps {
@@ -9,6 +10,7 @@ interface UserProps {
     email: string;
     name: string;
     joinedDate : string;
+    profilePicture: string;
 }
 
 interface SlugProps{
@@ -18,7 +20,68 @@ interface SlugProps{
 export default function ProfileDetail(slug : SlugProps)
 {
     const [user, setUser] = useState<UserProps>();
-    const [errorMessage, setErrorMessage] = useState("");
+
+    const profilePicRef = useRef<HTMLImageElement>(null);
+    const [uploadedUrl, setUploadedUrl] = useState("");
+    const [profilePic, setProfilePic] = useState<File | null>(null)
+
+    const [newName, setNewName] = useState("");
+
+    const handleFileChange = (event : React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files) {
+            setProfilePic(event.target.files[0]);
+        }
+    };
+    function getFileExtension(filename : string) {
+        const lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex === -1 || lastDotIndex === 0) {
+            return '';
+        }
+        return filename.substring(lastDotIndex + 1);
+    }
+
+    const handleUpload = async () => {
+        if (!profilePic) return;
+
+        const storageRef = ref(firebase.storage, `profile-pictures/${user?.id}`);
+
+        try {
+            const imageExtension = getFileExtension(profilePic.name);
+
+            await uploadBytes(storageRef, profilePic);
+            const pictureUrl = await getDownloadURL(storageRef);
+            setUploadedUrl(pictureUrl);
+
+            if (!user || !pictureUrl) {
+               throw new Error("No user or picture provided");
+            }
+
+            await updateDoc(doc(firebase.db, "users", user.id), {
+                profilePicture : user.id + "." + imageExtension
+            });
+
+        } catch (error) {
+            console.error('Error uploading picture', error);
+        }
+    };
+
+    const handleNameInputChange = (event : React.ChangeEvent<HTMLInputElement>) => {
+        setNewName(event.target.value);
+    };
+
+    const handleNameChange = async () => {
+        try {
+            if (user)
+            {
+                await updateDoc(doc(firebase.db, "users", user.id), {
+                    name : newName
+                });
+            }
+        }
+        catch (error) {
+            console.error('Error changing name ', error);
+        }
+    }
 
     useEffect( () => {
         const getDetail = async () =>
@@ -33,13 +96,27 @@ export default function ProfileDetail(slug : SlugProps)
                         name: snapshot.data().name,
                         email: snapshot.data().email,
                         joinedDate: snapshot.data().joinedDate.toDate().toLocaleDateString(),
+                        profilePicture: snapshot.data().profilePicture,
                     }
 
                 setUser(data);
+                let storageRef = null;
+
+                if (data.profilePicture == "" || data.profilePicture == null) {
+                    storageRef = ref(firebase.storage, `profile-pictures/default.png`);
+                }
+                else {
+                    storageRef = ref(firebase.storage, `profile-pictures/${data.profilePicture}`);
+                }
+                const pictureUrl = await getDownloadURL(storageRef);
+
+                if (profilePicRef.current) {
+                    profilePicRef.current.src = pictureUrl;
+                }
             }
             else
             {
-                setErrorMessage("No such document!")
+                throw new Error("Can't user info")
             }
         }
         getDetail()
@@ -48,9 +125,25 @@ export default function ProfileDetail(slug : SlugProps)
     return(
         <>
             <div>
+                <div>
+                    <label>Profile Pic</label>
+                    <img width='150px' height='150px' ref={profilePicRef}></img>
+                </div>
                 <div>Name = {user && user.name}</div>
                 <div>Email = {user && user.email}</div>
                 <div>Joined Date = {user && user.joinedDate}</div>
+            </div>
+            <div>
+                <input type="file" onChange={handleFileChange} />
+                <button onClick={handleUpload}>
+                    Upload Profile Picture
+                </button>
+                <br></br>
+                <input style={{ outlineStyle: 'solid'}}
+                       type="text" name="newName" onChange={handleNameInputChange} />
+                <button onClick={handleNameChange}>
+                    Change Name
+                </button>
             </div>
         </>
     )
