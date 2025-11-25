@@ -4,6 +4,7 @@ import React, {useEffect, useRef, useState} from "react";
 import {doc, getDoc, updateDoc} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import firebase from "../firebase/firebaseConfig"
+import { useRouter } from "next/navigation";
 
 interface UserProps {
     id : string;
@@ -19,10 +20,10 @@ interface SlugProps{
 
 export default function ProfileDetail(slug : SlugProps)
 {
+    const router = useRouter();
     const [user, setUser] = useState<UserProps>();
 
     const profilePicRef = useRef<HTMLImageElement>(null);
-    const [uploadedUrl, setUploadedUrl] = useState("");
     const [profilePic, setProfilePic] = useState<File | null>(null)
 
     const [newName, setNewName] = useState("");
@@ -50,15 +51,15 @@ export default function ProfileDetail(slug : SlugProps)
 
             await uploadBytes(storageRef, profilePic);
             const pictureUrl = await getDownloadURL(storageRef);
-            setUploadedUrl(pictureUrl);
 
             if (!user || !pictureUrl) {
                throw new Error("No user or picture provided");
             }
 
             await updateDoc(doc(firebase.db, "users", user.id), {
-                profilePicture : user.id + "." + imageExtension
+                profilePicture : user.id
             });
+            router.refresh();
 
         } catch (error) {
             console.error('Error uploading picture', error);
@@ -71,11 +72,11 @@ export default function ProfileDetail(slug : SlugProps)
 
     const handleNameChange = async () => {
         try {
-            if (user)
-            {
+            if (user) {
                 await updateDoc(doc(firebase.db, "users", user.id), {
                     name : newName
                 });
+                router.refresh();
             }
         }
         catch (error) {
