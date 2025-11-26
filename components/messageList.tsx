@@ -1,7 +1,7 @@
 'use client'
 
 import firebase from  "../firebase/firebaseConfig"
-import {useState, useEffect, ChangeEvent} from "react";
+import {useState, useEffect, ChangeEvent, useRef} from "react";
 import {onSnapshot, collection, updateDoc, getDoc, arrayUnion, arrayRemove} from "firebase/firestore";
 import {useRouter} from "next/navigation";
 import { doc } from "firebase/firestore";
@@ -28,6 +28,46 @@ export function MessageList (user:  {
     const [errorMessage, setErrorMessage] = useState<string>("");
     const [type, setType] = useState(0);
     const [checkedCheckboxes, setCheckedCheckboxes] = useState<string[]>([]);
+    const prevButtonRef = useRef<HTMLButtonElement>(null);
+    const nextButtonRef = useRef<HTMLButtonElement>(null);
+
+    const [page, setPage] = useState(0);
+    const messageLimit = 3;
+
+    const paginateMessages = (messageParam : MessageProps[]) =>{
+        let messageArray = messageParam
+        if (messageArray.length === 0) {
+            return messageArray;
+        }
+
+        const maxPage = (Math.ceil(messageArray.length / 3))
+        if (page > (maxPage - 1)) {
+            setPage(maxPage - 1);
+        }
+        if (nextButtonRef.current) {
+            if (messageArray.length <= (page + 1) * messageLimit) {
+                nextButtonRef.current.disabled = true;
+                nextButtonRef.current.style.display = "none";
+            }
+            else {
+                nextButtonRef.current.disabled = false;
+                nextButtonRef.current.style.display = "block";
+            }
+        }
+        if (prevButtonRef.current) {
+            if (page === 0) {
+                prevButtonRef.current.disabled = true;
+                prevButtonRef.current.style.display = "none";
+            }
+            else {
+                prevButtonRef.current.disabled = false;
+                prevButtonRef.current.style.display = "block";
+            }
+        }
+
+        messageArray = messageArray.slice(page * messageLimit, (page + 1) * messageLimit);
+        return messageArray;
+    }
 
     const sortFilterMessage = (messages: MessageProps[], receiveId : string, senderId : string, categoryType : number) =>
     {
@@ -69,11 +109,11 @@ export function MessageList (user:  {
         return filteredMessage;
     }
 
-    useEffect( () => {
+    useEffect(() => {
         onSnapshot(collection(firebase.db, "messages"), (snapshot) => {
             const messageArray =
                 snapshot.docs.map((document) => {
-
+                console.log("RUN SNAPSHOT");
                 return {
                     id: document.id,
                     senderId: document.data().senderId,
@@ -85,13 +125,14 @@ export function MessageList (user:  {
                 }
             });
 
-            setMessages(sortFilterMessage(messageArray, user.id, user.id, type));
+            setMessages(paginateMessages(sortFilterMessage
+            (messageArray, user.id, user.id, type)));
 
         }, error => {
             setErrorMessage(error.message);
             console.log(error)
         });
-    }, [type, user.id]);
+    }, [type, user.id, page]);
 
     const viewDetail= (messageId : string) =>{
         router.push(`/user/message/${messageId}`)
@@ -142,11 +183,18 @@ export function MessageList (user:  {
     return(
         <>
             <div>
-                <button onClick= {() => setType(0)}>Inbox</button>
-                <button onClick={() => setType(1)}>Sent</button>
-                <button onClick={() => setType(2)}>Starred</button>
+                <button onClick= {() => {
+                    setType(0)
+                    setPage(0)}}>Inbox</button>
+                <button onClick={() => {
+                    setType(1)
+                    setPage(0)}}>Sent</button>
+                <button onClick={() => {
+                    setType(2)
+                    setPage(0)}}>Starred</button>
             </div>
             <div className="listContainer">
+                <div>Page : {page + 1}</div>
                 <table>
                     <thead>
                     <tr>
@@ -188,9 +236,18 @@ export function MessageList (user:  {
                     ))}
                     </tbody>
                 </table>
-                <button onClick={() => handleStar(checkedCheckboxes)}>
+                <button onClick={async () => {
+                    await handleStar(checkedCheckboxes)
+                    setCheckedCheckboxes([]);
+                }}>
                     Star All Selected
                 </button>
+                <button ref={prevButtonRef} onClick={() => {
+                    setPage(page - 1);
+                }}>Previous Page</button>
+                <button ref={nextButtonRef} onClick={() => {
+                    setPage(page + 1);
+                }}>Next Page</button>
             </div>
         </>
     )
