@@ -3,7 +3,7 @@ import firebase from "../firebase/firebaseConfig";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { GetCurrentUser } from "@/utils/CurrentUser";
-import Header from "../components/header";
+import Header from "../components/Header";
 
 export default function Main() {
   const router = useRouter();
