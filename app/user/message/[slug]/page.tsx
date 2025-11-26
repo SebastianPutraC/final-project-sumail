@@ -1,5 +1,6 @@
 import MessageDetail from "../../../../components/messageDetail";
 import Header from "@/components/Header";
+import {GetCurrentUser} from "@/utils/CurrentUser";
 
 export default async function MessageDetailPage({
   params,
