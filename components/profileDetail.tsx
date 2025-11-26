@@ -49,6 +49,10 @@ export default function ProfileDetail(slug : SlugProps)
 
         try {
             const imageExtension = getFileExtension(profilePic.name);
+            const supportedExtensions: string[] = ["jpg", "png", 'jpeg', 'jfif', 'pjpeg', 'pjp', 'svg', 'webp'];
+            if (!supportedExtensions.includes(imageExtension)) {
+                throw new Error("File type not supported")
+            }
 
             await uploadBytes(storageRef, profilePic);
             const pictureUrl = await getDownloadURL(storageRef);
