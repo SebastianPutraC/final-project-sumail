@@ -1,5 +1,5 @@
 import ProfileDetail from '../../../../components/profileDetail';
-import Header from "@/components/header";
+import Header from "@/components/Header";
 
 export default async function Profile({params,} : {
     params: Promise<{slug: string}>;
