@@ -1,17 +1,7 @@
-'use client'
-import LoginForm from "@/components/loginForm";
-import Header from "@/components/Header";
+"use client";
+
+import Login from "@/components/Login";
 
 export default function LoginPage() {
-    return (
-        <>
-            <div>
-                {Header()}
-            </div>
-            <div>
-                Login
-                {LoginForm()}
-            </div>
-        </>
-    );
+  return <Login />;
 }
