@@ -42,7 +42,7 @@ export default function ComposeForm()
 
     const sendMessage = async () => {
         const validationError = validateData();
-        if(validationError.receiverEmail !== "" && validationError.title !== "")
+        if(validationError.receiverEmail !== "" || validationError.title !== "")
         {
             setComposeError(validationError);
         }
@@ -64,7 +64,7 @@ export default function ComposeForm()
 
                 const receiverRef = doc(firebase.db, "users", receiverId)
                 const receiverSnap = await getDoc(receiverRef)
-                if (!receiverSnap.exists() || receiverSnap.id === user.id)
+                if (!receiverSnap.exists())
                 {
                     setOtherError("No available receiver");
                     throw new Error(otherError)
