@@ -22,3 +22,11 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+.listContainer {
+    border-radius: 25px;
+    border: 2px solid #73AD21;
+    padding: 20px;
+    width: 1000px;
+    margin: auto;
+}
