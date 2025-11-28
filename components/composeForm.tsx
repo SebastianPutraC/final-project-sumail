@@ -5,6 +5,7 @@ import {addDoc, collection, Timestamp, getDoc, doc} from "firebase/firestore";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import {GetCurrentUser} from "@/utils/CurrentUser";
+import { query, where, orderBy, limit, getDocs } from "firebase/firestore"
 
 interface ComposeProps {
     receiverId: string;
@@ -23,12 +24,52 @@ export default function ComposeForm()
 
     const [otherError, setOtherError] = useState("Unknown Error");
 
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false)
+
+    const fetchSuggestions = async (keyword: string) => {
+        if (!keyword || !user.id) {
+            setSuggestions([]);
+            return
+        }
+
+        const q = query(
+            collection(firebase.db, "messages"),
+            where("senderId", "==", user.id),
+            orderBy("sentDate", "desc"),
+            limit(10)
+        );
+
+        const querySnap = await getDocs(q);
+        const receivers: Record<string, number> = {};
+
+        querySnap.forEach(doc => {
+            const r = doc.data().receiverId;
+            if (r.toLowerCase().includes(keyword.toLowerCase())) {
+                receivers[r] = (receivers[r] || 0) + 1;
+            }
+        });
+
+        const sorted = Object.keys(receivers).sort(
+            (a, b) => receivers[b] - receivers[a]
+        );
+
+        setSuggestions(sorted.slice(0, 5));
+    }
+
     const handleChange =
         (event : React.ChangeEvent<HTMLInputElement> |
             React.ChangeEvent<HTMLTextAreaElement>) => {
+            
+            const { name, value } = event.target;    
 
-            setComposeForm({...composeForm, [event.target.name]: event.target.value})
-            setComposeError({...composeError, [event.target.name]: ""})
+            setComposeForm({...composeForm, [name]: value })
+            setComposeError({...composeError, [name]: ""})
+
+            if (name === "receiverId") {
+                setShowSuggestions(true)
+                fetchSuggestions(value)
+            }
         };
 
     const validateData = () => {
@@ -43,10 +84,10 @@ export default function ComposeForm()
 
     const sendMessage = async () => {
         const validationError = validateData();
-        if(validationError.receiverId !== "" && validationError.title !== ""
-            && validationError.content !== "")
+        if(validationError.receiverId || validationError.title || validationError.content)
         {
             setComposeError(validationError);
+            return;
         }
         else
         {
@@ -90,7 +131,21 @@ export default function ComposeForm()
             <h2>Compose Message</h2>
             <div>
                 <label>Receiver Id:</label>
-                <input style={{ outlineStyle: 'solid'}} type="text" name="receiverId" onChange={handleChange} />
+                <input style={{ outlineStyle: 'solid'}} type="text" name="receiverId" value={composeForm.receiverId} onChange={handleChange} onFocus={() => setShowSuggestions(true)} />
+
+                {showSuggestions && suggestions.length > 0 && (
+                    <ul className="suggest-box">
+                        {suggestions.map((item, i) => (
+                            <li key={i} onClick={() => {
+                                setComposeForm({ ...composeForm, receiverId: item })
+                                setShowSuggestions(false)
+                            }}
+                            >
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+                )}
                 {composeError.receiverId &&(
                     <div>{composeError.receiverId}</div>
                 )}
