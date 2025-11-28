@@ -1,254 +1,254 @@
-'use client'
+"use client";
 
-import firebase from  "../firebase/firebaseConfig"
-import {useState, useEffect, ChangeEvent, useRef} from "react";
-import {onSnapshot, collection, updateDoc, getDoc, arrayUnion, arrayRemove} from "firebase/firestore";
-import {useRouter} from "next/navigation";
-import { doc } from "firebase/firestore";
+import firebase from "../firebase/firebaseConfig";
+import { useState, useEffect, useMemo } from "react";
+import {
+  onSnapshot,
+  collection,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  doc,
+} from "firebase/firestore";
+import { useRouter } from "next/navigation";
+import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
+import StarIcon from "@mui/icons-material/Star";
+import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
+import IndeterminateCheckBoxIcon from "@mui/icons-material/IndeterminateCheckBox";
+import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import SearchIcon from "@mui/icons-material/Search";
+import { MessageProps, MessageListProps, FormattedUsers } from "@/utils/types";
 
-interface MessageProps {
-    id: string;
-    senderId: string;
-    receiverId: string;
-    title: string;
-    content: string;
-    sentDate: Date;
-    starred: boolean;
-}
+export function MessageList({ user }: MessageListProps) {
+  const [allMessages, setAllMessages] = useState<MessageProps[]>([]);
+  const [allUsers, setAllUsers] = useState<FormattedUsers[]>([]);
+  const [checked, setChecked] = useState<string[]>([]);
+  const [page, setPage] = useState(0);
+  const [searchInput, setSearhInput] = useState<string>("");
+  const [limit, setLimit] = useState<number>(5);
 
-export function MessageList (user:  {
-    id : string
-    email: string
-    name: string
-    password: string })
-{
-    const router = useRouter();
+  const router = useRouter();
 
-    const [messages, setMessages] = useState<MessageProps[]>([]);
-    const [errorMessage, setErrorMessage] = useState<string>("");
-    const [type, setType] = useState(0);
-    const [checkedCheckboxes, setCheckedCheckboxes] = useState<string[]>([]);
-    const prevButtonRef = useRef<HTMLButtonElement>(null);
-    const nextButtonRef = useRef<HTMLButtonElement>(null);
+  const limitOptions = [5, 10, 20, 30];
 
-    const [page, setPage] = useState(0);
-    const messageLimit = 3;
+  // Filter Search
+  const filteredMessages = useMemo(() => {
+    if (!searchInput.trim()) return allMessages;
 
-    const paginateMessages = (messageParam : MessageProps[]) =>{
-        let messageArray = messageParam
-        if (messageArray.length === 0) {
-            return messageArray;
-        }
+    const q = searchInput.toLowerCase();
+    return allMessages.filter(
+      (m) =>
+        m.senderName?.toLowerCase().includes(q) ||
+        m.content?.toLowerCase().includes(q)
+    );
+  }, [allMessages, searchInput]);
 
-        const maxPage = (Math.ceil(messageArray.length / 3))
-        if (page > (maxPage - 1)) {
-            setPage(maxPage - 1);
-        }
-        if (nextButtonRef.current) {
-            if (messageArray.length <= (page + 1) * messageLimit) {
-                nextButtonRef.current.disabled = true;
-                nextButtonRef.current.style.display = "none";
-            }
-            else {
-                nextButtonRef.current.disabled = false;
-                nextButtonRef.current.style.display = "block";
-            }
-        }
-        if (prevButtonRef.current) {
-            if (page === 0) {
-                prevButtonRef.current.disabled = true;
-                prevButtonRef.current.style.display = "none";
-            }
-            else {
-                prevButtonRef.current.disabled = false;
-                prevButtonRef.current.style.display = "block";
-            }
-        }
+  // Sort
+  const sortedMessages = useMemo(() => {
+    return [...filteredMessages].sort((a, b) => {
+      return b.sentDate.getTime() - a.sentDate.getTime();
+    });
+  }, [filteredMessages]);
 
-        messageArray = messageArray.slice(page * messageLimit, (page + 1) * messageLimit);
-        return messageArray;
+  // Pagination
+  const maxPage = Math.max(0, Math.ceil(sortedMessages.length / limit) - 1);
+  const safePage = Math.min(page, maxPage);
+  const paginated = useMemo(() => {
+    const start = safePage * limit;
+    return sortedMessages.slice(start, start + limit);
+  }, [sortedMessages, safePage, limit]);
+
+  const toggleStar = async (messageId: string, starred: boolean) => {
+    const ref = doc(firebase.db, "messages", messageId);
+
+    if (starred) {
+      await updateDoc(ref, { starredId: arrayRemove(user.id) });
+    } else {
+      await updateDoc(ref, { starredId: arrayUnion(user.id) });
     }
+  };
 
-    const sortFilterMessage = (messages: MessageProps[], receiveId : string, senderId : string, categoryType : number) =>
-    {
-        let filteredMessage = messages
-        switch (categoryType)
-        {
-            case 0: //Receive
-                filteredMessage = messages.filter(item => item.receiverId === receiveId);
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(firebase.db, "messages"),
+      (snapshot) => {
+        const messagesArray = snapshot.docs.map((d) => {
+          const senderId = d.data().senderId;
 
-                filteredMessage.sort((a, b) =>
-                {
-                    if (a.starred !== b.starred) {
-                        return a.starred ? -1 : 1;
-                    }
-                    return b.sentDate.getDate() - a.sentDate.getDate()
-                });
-                break;
-            case 1: //Sent
-                filteredMessage = messages.filter(item => item.senderId === senderId);
-                filteredMessage.sort((a, b) =>
-                {
-                    if (a.starred !== b.starred) {
-                        return a.starred ? -1 : 1;
-                    }
-                    return b.sentDate.getDate() - a.sentDate.getDate()
-                });
-                break;
-            case 2: //Starred
-                filteredMessage = messages.filter(item =>
-                    (item.receiverId === receiveId || item.senderId === senderId) && item.starred);
-                filteredMessage.sort((a, b) =>
-                {
-                    return b.sentDate.getDate() - a.sentDate.getDate()
-                });
-                break;
-            default:
-                break;
-        }
-        return filteredMessage;
-    }
+          const sender = allUsers?.find((u) => u.id === senderId);
 
-    useEffect(() => {
-        onSnapshot(collection(firebase.db, "messages"), (snapshot) => {
-            const messageArray =
-                snapshot.docs.map((document) => {
-                console.log("RUN SNAPSHOT");
-                return {
-                    id: document.id,
-                    senderId: document.data().senderId,
-                    receiverId: document.data().receiverId,
-                    title: document.data().title,
-                    content: document.data().content,
-                    sentDate: document.data().sentDate.toDate(),
-                    starred : document.data().starredId?.includes(user.id),
-                }
-            });
-
-            setMessages(paginateMessages(sortFilterMessage
-            (messageArray, user.id, user.id, type)));
-
-        }, error => {
-            setErrorMessage(error.message);
-            console.log(error)
+          return {
+            id: d.id,
+            senderId,
+            senderName: sender?.name ?? "Unknown",
+            receiverId: d.data().receiverId,
+            title: d.data().title,
+            content: d.data().content,
+            sentDate: d.data().sentDate?.toDate() ?? new Date(),
+            starred: d.data().starredId?.includes(user?.id),
+          };
         });
-    }, [type, user.id, page]);
 
-    const viewDetail= (messageId : string) =>{
-        router.push(`/user/message/${messageId}`)
-    }
+        const filteredMessageArray = messagesArray.filter(
+          (m) => m.receiverId === user?.id
+        );
 
-    async function handleStar(documentId : string[])
-    {
-        try {
-            for (let i = 0; i < documentId.length; i++)
-            {
-                const docRef = doc(firebase.db, "messages", documentId[i]);
-                const docInfo = await getDoc(docRef)
+        setAllMessages(filteredMessageArray);
+      }
+    );
 
-                if (!docInfo.exists()) {
-                    throw new Error("No Message Found")
-                }
-                else {
-                    const starredArray : string[] = docInfo.data().starredId;
+    return () => unsub();
+  }, [user?.id, allUsers, limit]);
 
-                    if (starredArray.includes(user.id)) {
-                        await updateDoc(docRef, {
-                            starredId: arrayRemove(user.id)
-                        });
+  useEffect(() => {
+    const unsub = onSnapshot(collection(firebase.db, "users"), (snapshot) => {
+      const users = snapshot.docs.map((u) => ({
+        id: u.id,
+        name: String(u.data().name),
+      }));
+
+      setAllUsers(users);
+    });
+
+    return () => unsub();
+  }, []);
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="bg-[#03045E] p-3 rounded-lg mb-3 text-white flex gap-5 justify-between items-center">
+        {/* Toggle Checked */}
+        <div className="flex gap-3">
+          <div className="cursor-pointer">
+            {checked.length > 0 ? (
+              <IndeterminateCheckBoxIcon
+                className={`w-5! h-5!`}
+                onClick={() => setChecked([])}
+              />
+            ) : (
+              <CheckBoxOutlineBlankIcon
+                className={`w-5! h-5!`}
+                onClick={() => setChecked(paginated.map((m) => m.id))}
+              />
+            )}
+          </div>
+          <div className="cursor-pointer">
+            <DeleteOutlineIcon className={`w-5! h-5!`} />
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="bg-white py-1 px-3 rounded-lg flex gap-2 items-center w-1/2">
+          <SearchIcon className="text-black border-none" />
+          <input
+            placeholder="Search email"
+            className="text-gray-500 text-lg w-full focus-visible:outline-none"
+            value={searchInput}
+            onChange={(e) => setSearhInput(e.target.value)}
+          />
+        </div>
+
+        {/* Data Limit */}
+        <div className="text-white flex gap-2 items-center">
+          <span>Limit</span>
+          <select
+            onChange={(e) => setLimit(Number(e.target.value))}
+            className="text-md"
+          >
+            {limitOptions.map((opt, index) => {
+              return (
+                <option key={index} value={opt} className="text-black">
+                  {String(opt)}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex items-center gap-3 text-nowrap">
+          <KeyboardArrowLeftIcon
+            className={`w-6! h-6! ${safePage === 0 ? "text-gray-400" : ""}`}
+            onClick={() => setPage(safePage - 1)}
+          />
+
+          <span className="text-sm font-medium">
+            Page {safePage + 1} of {maxPage + 1}
+          </span>
+
+          <KeyboardArrowLeftIcon
+            className={`rotate-180 w-6! h-6! ${
+              safePage === maxPage ? "text-gray-400" : ""
+            }`}
+            onClick={() => setPage(safePage + 1)}
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+        <table className="min-w-full text-sm text-gray-700">
+          <tbody>
+            {paginated.map((m) => (
+              <tr
+                key={m.id}
+                onClick={() => router.push(`/user/message/${m.id}`)}
+                className={`border-b border-gray-100 last:border-none cursor-pointer hover:bg-gray-50 transition hover:shadow-sm ${
+                  checked.includes(m.id) && "bg-blue-50"
+                }`}
+              >
+                <td className="p-3 flex items-center gap-4 w-10">
+                  <input
+                    type="checkbox"
+                    checked={checked.includes(m.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) =>
+                      e.target.checked
+                        ? setChecked([...checked, m.id])
+                        : setChecked(checked.filter((x) => x !== m.id))
                     }
-                    else {
-                        await updateDoc(docRef, {
-                            starredId: arrayUnion(user.id)
-                        });
-                    }
-                }
-                console.log(`Document successfully updated! : ${documentId[i]}`);
-            }
-        } catch (error) {
-            console.error("Error updating document: ", error);
-        }
-    }
+                    className="h-4 w-4 accent-blue-600 cursor-pointer"
+                  />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    {m.starred ? (
+                      <StarBorderOutlinedIcon
+                        className="w-5! h-5!"
+                        onClick={() => toggleStar(m.id, m.starred)}
+                      />
+                    ) : (
+                      <StarIcon
+                        className="w-5! h-5! text-[#03045E]"
+                        onClick={() => toggleStar(m.id, m.starred)}
+                      />
+                    )}
+                  </div>
+                </td>
 
-    const handleCheckboxChange = (event : ChangeEvent<HTMLInputElement>) => {
-        const checkedId = event.target.value;
-        if(event.target.checked){
-            setCheckedCheckboxes([...checkedCheckboxes, checkedId])
-        }else{
-            setCheckedCheckboxes(checkedCheckboxes.filter(id=>id !== checkedId))
-        }
-    }
+                <td className="p-3 font-medium max-w-[100px]">
+                  {m.senderName || m.senderId}
+                </td>
 
+                <td className="p-3 max-w-[300px] truncate">
+                  <span className="font-medium">{m.title}</span> - {m.content}
+                </td>
 
-    return(
-        <>
-            <div>
-                <button onClick= {() => {
-                    setType(0)
-                    setPage(0)}}>Inbox</button>
-                <button onClick={() => {
-                    setType(1)
-                    setPage(0)}}>Sent</button>
-                <button onClick={() => {
-                    setType(2)
-                    setPage(0)}}>Starred</button>
-            </div>
-            <div className="listContainer">
-                <div>Page : {page + 1}</div>
-                <table>
-                    <thead>
-                    <tr>
-                        <th>Checkbox</th>
-                        <th>Sender Id</th>
-                        <th>Title</th>
-                        <th>Sent Date</th>
-                        <th>Details Button</th>
-                        <th>Starred Button</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {messages.map(message=> (
-                        <tr key={message.id}>
-                            <td>
-                                <input
-                                    type="checkbox" value={message.id} checked={checkedCheckboxes.includes(message.id)}
-                                    onChange={(event) => { handleCheckboxChange(event) }}
-                                />
-                            </td>
-                            <td>{message.senderId}</td>
-                            <td>{message.title}</td>
-                            <td>{message.sentDate.toLocaleDateString()}</td>
-                            <td>
-                                <button onClick={() => viewDetail(message.id)}>
-                                    Message Details
-                                </button>
-                            </td>
-                            <td>
-                                <button onClick={() => handleStar([message.id])}>
-                                    {(message.starred) ? (
-                                        <p>Unstar Message</p>
-                                    ) : (
-                                        <p>Star Message</p>
-                                    )}
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-                <button onClick={async () => {
-                    await handleStar(checkedCheckboxes)
-                    setCheckedCheckboxes([]);
-                }}>
-                    Star All Selected
-                </button>
-                <button ref={prevButtonRef} onClick={() => {
-                    setPage(page - 1);
-                }}>Previous Page</button>
-                <button ref={nextButtonRef} onClick={() => {
-                    setPage(page + 1);
-                }}>Next Page</button>
-            </div>
-        </>
-    )
+                <td className="p-3 w-[150px]">
+                  {m.sentDate
+                    .toLocaleString("en-GB", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                    .replace(",", " |")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }

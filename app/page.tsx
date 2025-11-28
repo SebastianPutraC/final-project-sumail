@@ -4,7 +4,7 @@ import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { GetCurrentUser } from "@/utils/CurrentUser";
 import Header from "@/components/Header";
-import { MessageList } from "@/components/messageList";
+import { MessageList } from "@/components/MessageList";
 
 export default function Main() {
   const router = useRouter();
