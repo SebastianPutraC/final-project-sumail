@@ -98,6 +98,7 @@ export default function ProfileDetail(slug : SlugProps)
 
     const logoutUser = async () => {
         await signOut(firebase.auth);
+        router.push("/login");
     }
 
     useEffect( () => {
