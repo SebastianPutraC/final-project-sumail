@@ -45,7 +45,7 @@ export default function Login() {
 
       toast.success("Login success! You will be redirect to home page");
       setTimeout(() => {
-        router.push("/");
+        router.push("/mail/inbox");
       }, 1000);
     } catch (err) {
       if (err instanceof FirebaseError) {
