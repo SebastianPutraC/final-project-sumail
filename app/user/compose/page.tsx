@@ -1,6 +1,6 @@
 "use client";
 import Header from "@/components/Header";
-import ComposeForm from "@/components/composeForm";
+import ComposeForm from "@/components/ComposeForm";
 
 export default function ComposePage() {
   return (
