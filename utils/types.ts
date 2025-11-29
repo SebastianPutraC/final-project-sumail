@@ -20,6 +20,7 @@ export interface MessageProps {
 }
 
 export interface MessageListProps {
+  type?: string;
   user: {
     id: string;
     email: string;

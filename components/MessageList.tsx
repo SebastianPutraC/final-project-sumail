@@ -9,6 +9,8 @@ import {
   arrayUnion,
   arrayRemove,
   doc,
+  query,
+  where,
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
@@ -20,7 +22,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import { MessageProps, MessageListProps, FormattedUsers } from "@/utils/types";
 
-export function MessageList({ user }: MessageListProps) {
+export function MessageList({ user, type }: MessageListProps) {
   const [allMessages, setAllMessages] = useState<MessageProps[]>([]);
   const [allUsers, setAllUsers] = useState<FormattedUsers[]>([]);
   const [checked, setChecked] = useState<string[]>([]);
@@ -70,36 +72,41 @@ export function MessageList({ user }: MessageListProps) {
   };
 
   useEffect(() => {
-    const unsub = onSnapshot(
+    const messagesQuery = query(
       collection(firebase.db, "messages"),
-      (snapshot) => {
-        const messagesArray = snapshot.docs.map((d) => {
-          const senderId = d.data().senderId;
-
-          const sender = allUsers?.find((u) => u.id === senderId);
-
-          return {
-            id: d.id,
-            senderId,
-            senderName: sender?.name ?? "Unknown",
-            receiverId: d.data().receiverId,
-            title: d.data().title,
-            content: d.data().content,
-            sentDate: d.data().sentDate?.toDate() ?? new Date(),
-            starred: d.data().starredId?.includes(user?.id),
-          };
-        });
-
-        const filteredMessageArray = messagesArray.filter(
-          (m) => m.receiverId === user?.id
-        );
-
-        setAllMessages(filteredMessageArray);
-      }
+      where(
+        type === "sent"
+          ? "senderId"
+          : type === "starred"
+          ? "starredId"
+          : "receiverId",
+        type === "starred" ? "array-contains" : "==",
+        user.id
+      )
     );
 
+    const unsub = onSnapshot(messagesQuery, (snapshot) => {
+      const messagesArray = snapshot.docs.map((d) => {
+        const senderId = d.data().senderId;
+        const sender = allUsers?.find((u) => u.id === senderId);
+
+        return {
+          id: d.id,
+          senderId,
+          senderName: sender?.name ?? "Unknown",
+          receiverId: d.data().receiverId,
+          title: d.data().title,
+          content: d.data().content,
+          sentDate: d.data().sentDate?.toDate() ?? new Date(),
+          starred: d.data().starredId?.includes(user?.id),
+        };
+      });
+
+      setAllMessages(messagesArray);
+    });
+
     return () => unsub();
-  }, [user?.id, allUsers, limit]);
+  }, [user?.id, allUsers, limit, type]);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(firebase.db, "users"), (snapshot) => {
@@ -190,62 +197,64 @@ export function MessageList({ user }: MessageListProps) {
       <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
         <table className="min-w-full text-sm text-gray-700">
           <tbody>
-            {paginated.map((m) => (
-              <tr
-                key={m.id}
-                onClick={() => router.push(`/user/message/${m.id}`)}
-                className={`border-b border-gray-100 last:border-none cursor-pointer hover:bg-gray-50 transition hover:shadow-sm ${
-                  checked.includes(m.id) && "bg-blue-50"
-                }`}
-              >
-                <td className="p-3 flex items-center gap-4 w-10">
-                  <input
-                    type="checkbox"
-                    checked={checked.includes(m.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) =>
-                      e.target.checked
-                        ? setChecked([...checked, m.id])
-                        : setChecked(checked.filter((x) => x !== m.id))
-                    }
-                    className="h-4 w-4 accent-blue-600 cursor-pointer"
-                  />
-                  <div onClick={(e) => e.stopPropagation()}>
-                    {m.starred ? (
-                      <StarBorderOutlinedIcon
-                        className="w-5! h-5!"
-                        onClick={() => toggleStar(m.id, m.starred)}
-                      />
-                    ) : (
-                      <StarIcon
-                        className="w-5! h-5! text-[#03045E]"
-                        onClick={() => toggleStar(m.id, m.starred)}
-                      />
-                    )}
-                  </div>
-                </td>
+            {paginated.map((m) => {
+              return (
+                <tr
+                  key={m.id}
+                  onClick={() => router.push(`/user/message/${m.id}`)}
+                  className={`border-b border-gray-100 last:border-none cursor-pointer hover:bg-gray-50 transition hover:shadow-sm ${
+                    checked.includes(m.id) && "bg-blue-50"
+                  }`}
+                >
+                  <td className="p-3 flex items-center gap-4 w-10">
+                    <input
+                      type="checkbox"
+                      checked={checked.includes(m.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) =>
+                        e.target.checked
+                          ? setChecked([...checked, m.id])
+                          : setChecked(checked.filter((x) => x !== m.id))
+                      }
+                      className="h-4 w-4 accent-blue-600 cursor-pointer"
+                    />
+                    <div onClick={(e) => e.stopPropagation()}>
+                      {m.starred ? (
+                        <StarIcon
+                          className="w-5! h-5! text-[#03045E]"
+                          onClick={() => toggleStar(m.id, m.starred)}
+                        />
+                      ) : (
+                        <StarBorderOutlinedIcon
+                          className="w-5! h-5!"
+                          onClick={() => toggleStar(m.id, m.starred)}
+                        />
+                      )}
+                    </div>
+                  </td>
 
-                <td className="p-3 font-medium max-w-[100px]">
-                  {m.senderName || m.senderId}
-                </td>
+                  <td className="p-3 font-medium max-w-[100px]">
+                    {m.senderName || m.senderId}
+                  </td>
 
-                <td className="p-3 max-w-[300px] truncate">
-                  <span className="font-medium">{m.title}</span> - {m.content}
-                </td>
+                  <td className="p-3 max-w-[300px] truncate">
+                    <span className="font-medium">{m.title}</span> - {m.content}
+                  </td>
 
-                <td className="p-3 w-[150px]">
-                  {m.sentDate
-                    .toLocaleString("en-GB", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                    .replace(",", " |")}
-                </td>
-              </tr>
-            ))}
+                  <td className="p-3 w-[150px]">
+                    {m.sentDate
+                      .toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                      .replace(",", " |")}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

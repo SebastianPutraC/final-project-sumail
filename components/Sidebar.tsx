@@ -12,6 +12,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const inbox = pathname.includes("inbox");
   const compose = pathname.includes("compose");
+  const sent = pathname.includes("sent");
 
   return (
     <aside className="p-8 flex flex-col items-center gap-10">
@@ -43,11 +44,23 @@ export default function Sidebar() {
             }`}
           />
         </Link>
-        <Link href="" className="w-fit p-2 rounded-lg group hover:bg-[#03045E]">
+        <Link
+          href="/mail/starred"
+          className="w-fit p-2 rounded-lg group hover:bg-[#03045E]"
+        >
           <StarBorderOutlinedIcon className="w-7! h-7! text-[#03045E] group-hover:text-white" />
         </Link>
-        <Link href="" className="w-fit p-2 rounded-lg group hover:bg-[#03045E]">
-          <SendOutlinedIcon className="w-7! h-7! text-[#03045E] group-hover:text-white" />
+        <Link
+          href="/mail/sent"
+          className={`w-fit p-2 rounded-lg group hover:bg-[#03045E] ${
+            sent ? "bg-[#03045E] hover:bg-[#0077B6]!" : ""
+          }`}
+        >
+          <SendOutlinedIcon
+            className={`w-7! h-7! text-[#03045E] group-hover:text-white ${
+              sent ? "text-white" : ""
+            }`}
+          />
         </Link>
       </nav>
     </aside>
