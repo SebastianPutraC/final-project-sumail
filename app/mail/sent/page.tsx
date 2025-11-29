@@ -8,7 +8,7 @@ export default function InboxPage() {
 
   return (
     <div className="py-8 pr-8">
-      <MessageList user={user} type="inbox" />
+      <MessageList user={user} type="sent" />
     </div>
   );
 }
