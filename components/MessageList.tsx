@@ -71,6 +71,7 @@ export function MessageList({ user, type }: MessageListProps) {
     }
   };
 
+  // Get Messages
   useEffect(() => {
     const messagesQuery = query(
       collection(firebase.db, "messages"),
@@ -82,7 +83,8 @@ export function MessageList({ user, type }: MessageListProps) {
           : "receiverId",
         type === "starred" ? "array-contains" : "==",
         user.id
-      )
+      ),
+      where("replyFromMessageId", "==", "")
     );
 
     const unsub = onSnapshot(messagesQuery, (snapshot) => {
@@ -108,6 +110,7 @@ export function MessageList({ user, type }: MessageListProps) {
     return () => unsub();
   }, [user?.id, allUsers, limit, type]);
 
+  // Get users
   useEffect(() => {
     const unsub = onSnapshot(collection(firebase.db, "users"), (snapshot) => {
       const users = snapshot.docs.map((u) => ({
@@ -158,7 +161,7 @@ export function MessageList({ user, type }: MessageListProps) {
 
         {/* Data Limit */}
         <div className="text-white flex gap-2 items-center">
-          <span>Limit</span>
+          <span>Items per page</span>
           <select
             onChange={(e) => setLimit(Number(e.target.value))}
             className="text-md"
@@ -198,10 +201,11 @@ export function MessageList({ user, type }: MessageListProps) {
         <table className="min-w-full text-sm text-gray-700">
           <tbody>
             {paginated.map((m) => {
+              console.log("m", m);
               return (
                 <tr
                   key={m.id}
-                  onClick={() => router.push(`/user/message/${m.id}`)}
+                  onClick={() => router.push(`/mail/${m.id}`)}
                   className={`border-b border-gray-100 last:border-none cursor-pointer hover:bg-gray-50 transition hover:shadow-sm ${
                     checked.includes(m.id) && "bg-blue-50"
                   }`}
