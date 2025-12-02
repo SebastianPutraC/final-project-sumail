@@ -67,4 +67,5 @@ export interface SidebarLinkProps {
   checkPath: boolean;
   Icon: React.ComponentType<SvgIconProps>;
   path: string;
+  setModal: any;
 }

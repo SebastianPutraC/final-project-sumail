@@ -18,13 +18,23 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "react-toastify";
 import { ClipLoader } from "react-spinners";
 import { MessageData, Receiver, FormValues } from "@/utils/types";
+import CloseIcon from "@mui/icons-material/Close";
 
 interface ComposeFormProps {
   type?: string;
   defaultData?: any;
+  isModal?: boolean;
+  hideModal?: () => void;
+  className?: string;
 }
 
-export default function ComposeForm({ type, defaultData }: ComposeFormProps) {
+export default function ComposeForm({
+  type,
+  defaultData,
+  isModal,
+  hideModal,
+  className,
+}: ComposeFormProps) {
   const [allMessages, setAllMessages] = useState<MessageData[]>([]);
   const [allUsers, setAllUsers] = useState<Receiver[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -38,61 +48,11 @@ export default function ComposeForm({ type, defaultData }: ComposeFormProps) {
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors, isValid },
   } = useForm({
     resolver: yupResolver(composeSchema),
     defaultValues: { receiver: "", subject: "", content: "" },
   });
-
-  // --- Sengaja tidak dihapus untuk backup sementara dulu ---
-  // const sendMessage = async () => {
-  //   const validationError = validateData();
-  //   if (validationError.receiverEmail !== "" || validationError.title !== "") {
-  //     setComposeError(validationError);
-  //   } else {
-  //     try {
-  //       const userDocs = await getDocs(collection(firebase.db, "users"));
-  //       const emailDocs = userDocs.docs.map((doc) => doc.data().email);
-  //       const receiverIndex = emailDocs.findIndex(
-  //         (receiver) => receiver === composeForm.receiverEmail
-  //       );
-
-  //       if (receiverIndex === -1) {
-  //         setOtherError("No receiver email");
-  //         throw new Error(otherError);
-  //       }
-
-  //       const receiverId = userDocs.docs[receiverIndex].id;
-
-  //       const receiverRef = doc(firebase.db, "users", receiverId);
-  //       const receiverSnap = await getDoc(receiverRef);
-  //       if (!receiverSnap.exists()) {
-  //         setOtherError("No available receiver");
-  //         throw new Error(otherError);
-  //       }
-
-  //       const docRef = await addDoc(collection(firebase.db, "messages"), {
-  //         senderId: user.id,
-  //         receiverId: receiverId,
-  //         title: composeForm.title,
-  //         content: composeForm.content,
-  //         sentDate: Timestamp.fromDate(new Date()),
-  //         starredId: ["0"],
-  //       });
-
-  //       const docSnap = await getDoc(docRef);
-  //       if (!docSnap.exists()) {
-  //         setOtherError("Missing added document");
-  //         throw new Error(otherError);
-  //       } else {
-  //         router.push("/");
-  //       }
-  //     } catch (e) {
-  //       console.error(otherError);
-  //     }
-  //   }
-  // };
 
   const handleSearch = (value: string) => {
     setSearchInput(value);
@@ -226,99 +186,133 @@ export default function ComposeForm({ type, defaultData }: ComposeFormProps) {
   }, [type, defaultData, setValue]);
 
   return (
-    <div className="border border-gray-200 rounded-lg shadow-sm px-5 py-3">
-      <form
-        className="flex flex-col gap-2"
-        onSubmit={handleSubmit(onSubmit)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
-            e.preventDefault();
-          }
-        }}
-      >
-        <div className="relative">
-          <div className={`flex items-center ${type === "reply" && "hidden"}`}>
-            <label className="font-medium text-nowrap w-20 mr-3">Send To</label>
-            {selectedReceiver && (
-              <div className="flex items-center gap-2 bg-blue-100 text-blue-700 px-2 rounded-full w-fit">
-                {typeof selectedReceiver === "string"
-                  ? selectedReceiver
-                  : selectedReceiver.email}
-                <button
-                  type="button"
-                  onClick={() => setSelectedReceiver(undefined)}
-                  className="text-sm ml-1 hover:text-red-600"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-            <input
-              value={searchInput}
-              onChange={(e) => handleSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  setSelectedReceiver(searchInput);
-                  setSearchInput("");
-                  setSuggestions([]);
-                }
-              }}
-              type="text"
-              className="border-b border-gray-200 rounded p-2 w-full focus-visible:outline-0"
+    <div className={`flex items-center justify-center w-full ${className}`}>
+      <div className="relative bg-white rounded-lg w-full">
+        {/* CLOSE MODAL */}
+        {isModal && (
+          <div className="w-full text-end">
+            <CloseIcon
+              className="w-5! h-5! cursor-pointer absolute top-3 right-2"
+              onClick={() => (hideModal ? hideModal() : {})}
             />
           </div>
-          {suggestions.length > 0 && (
-            <div className="absolute bg-white border border-gray-200 w-full rounded shadow-md mt-1 z-10">
-              {suggestions.map((u) => (
-                <div
-                  key={u.id}
-                  onClick={() => handleSelect(u)}
-                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                >
-                  {u.email}
+        )}
+        <div className="border border-gray-200 rounded-lg shadow-sm px-5 py-3">
+          <form
+            className="flex flex-col gap-2"
+            onSubmit={handleSubmit(onSubmit)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+                e.preventDefault();
+              }
+            }}
+          >
+            {/* SEND TO */}
+            <div className="relative">
+              <div
+                className={`flex items-center ${type === "reply" && "hidden"}`}
+              >
+                <label className="font-medium text-nowrap w-20 mr-3">
+                  Send To
+                </label>
+
+                {/* Selected receiver pill */}
+                {selectedReceiver && (
+                  <div className="flex items-center gap-2 bg-blue-100 text-blue-700 px-2 rounded-full w-fit">
+                    {typeof selectedReceiver === "string"
+                      ? selectedReceiver
+                      : selectedReceiver.email}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReceiver(undefined)}
+                      className="text-sm ml-1 hover:text-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
+                {/* Search input */}
+                <input
+                  value={searchInput}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setSelectedReceiver(searchInput);
+                      setSearchInput("");
+                      setSuggestions([]);
+                    }
+                  }}
+                  type="text"
+                  className="border-b border-gray-200 rounded p-2 w-full focus-visible:outline-0"
+                />
+              </div>
+
+              {/* Suggestions dropdown */}
+              {suggestions.length > 0 && (
+                <div className="absolute bg-white border border-gray-200 w-full rounded shadow-md mt-1 z-10">
+                  {suggestions.map((u) => (
+                    <div
+                      key={u.id}
+                      onClick={() => handleSelect(u)}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      {u.email}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
+
+            {/* SUBJECT (HIDDEN IF REPLY) */}
+            <div
+              className={`flex items-center gap-3 ${
+                type === "reply" && "hidden"
+              }`}
+            >
+              <label className="w-20 font-medium">Subject</label>
+              <input
+                {...register("subject")}
+                type="text"
+                className="border-b border-gray-200 rounded p-2 w-full focus-visible:outline-0"
+              />
+            </div>
+
+            {/* CONTENT */}
+            <textarea
+              {...register("content")}
+              className="rounded-lg h-100 p-3 resize-none"
+              placeholder="Write your mail here..."
+            />
+
+            {/* ERRORS */}
+            <div className="flex gap-1">
+              {[errors.receiver, errors.subject, errors.content]
+                .filter(Boolean)
+                .map((err, i) => (
+                  <p key={i} className="text-red-500 text-sm mt-1">
+                    {err?.message} |
+                  </p>
+                ))}
+            </div>
+
+            {/* SUBMIT BUTTON */}
+            <button
+              type="submit"
+              disabled={!isValid}
+              className="flex items-center justify-center bg-[#00B4D8] hover:bg-[#0096C7] font-semibold text-white rounded-lg p-3 w-full text-lg transition shadow-sm hover:shadow-md cursor-pointer disabled:cursor-auto disabled:bg-gray-300"
+            >
+              {isLoading ? (
+                <ClipLoader size={25} color="white" />
+              ) : type === "reply" ? (
+                "Send Reply"
+              ) : (
+                "Send Message"
+              )}
+            </button>
+          </form>
         </div>
-        <div
-          className={`flex items-center gap-3 ${type === "reply" && "hidden"}`}
-        >
-          <label className="w-20 font-medium">Subject</label>
-          <input
-            {...register("subject")}
-            type="text"
-            className="border-b border-gray-200 rounded p-2 w-full focus-visible:outline-0"
-          />
-        </div>
-        <textarea
-          {...register("content")}
-          className="rounded-lg h-100 p-3 resize-none"
-          placeholder="Write your mail here..."
-        />
-        <div className="flex gap-1">
-          {[errors.receiver, errors.subject, errors.content]
-            .filter(Boolean)
-            .map((err, i) => (
-              <p key={i} className="text-red-500 text-sm mt-1">
-                {err?.message} |
-              </p>
-            ))}
-        </div>
-        <button
-          type="submit"
-          disabled={!isValid}
-          className="flex items-center justify-center bg-[#00B4D8] hover:bg-[#0096C7] font-semibold text-white rounded-lg p-3 w-full text-lg transition shadow-sm hover:shadow-md cursor-pointer disabled:cursor-auto disabled:bg-gray-300"
-        >
-          {isLoading ? (
-            <ClipLoader size={25} color="white" />
-          ) : type === "reply" ? (
-            "Send Reply"
-          ) : (
-            "Send Message"
-          )}
-        </button>
-      </form>
+      </div>
     </div>
   );
 }
