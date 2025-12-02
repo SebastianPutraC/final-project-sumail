@@ -1,3 +1,5 @@
+import { SvgIconProps } from "@mui/material/SvgIcon";
+
 export interface AuthPayload {
   email: string;
   password: string;
@@ -11,12 +13,15 @@ export interface RegisterPayload extends AuthPayload {
 export interface MessageProps {
   id: string;
   senderId: string;
+  senderEmail?: string;
+  senderName?: string;
   receiverId: string;
+  receiverEmail?: string;
+  replyFromMessageId?: string[] | string;
   title: string;
   content: string;
   sentDate: Date;
-  starred: boolean;
-  senderName: string;
+  starred?: boolean;
 }
 
 export interface MessageListProps {
@@ -56,4 +61,10 @@ export interface ComposeProps {
   receiverEmail: string;
   title: string;
   content: string;
+}
+
+export interface SidebarLinkProps {
+  checkPath: boolean;
+  Icon: React.ComponentType<SvgIconProps>;
+  path: string;
 }
