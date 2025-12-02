@@ -19,7 +19,7 @@ import { toast } from "react-toastify";
 import { ClipLoader } from "react-spinners";
 import { MessageData, Receiver, FormValues } from "@/utils/types";
 
-export default function ComposeForm() {
+export default function ComposeForm( {hideModal = Function()}) {
   const [allMessages, setAllMessages] = useState<MessageData[]>([]);
   const [allUsers, setAllUsers] = useState<Receiver[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -264,7 +264,7 @@ export default function ComposeForm() {
         </div>
         <textarea
           {...register("content")}
-          className="rounded-lg h-100 p-3 resize-none"
+          className="rounded-lg h-65 p-3 resize-none"
           placeholder="Write your mail here..."
         />
         <div className="flex gap-1">
@@ -283,6 +283,12 @@ export default function ComposeForm() {
         >
           {isLoading ? <ClipLoader size={25} color="white" /> : "Send Message"}
         </button>
+          <button
+              onClick={() => {hideModal()}}
+              className="flex items-center justify-center bg-red-500 hover:bg-red-700 font-semibold text-white rounded-lg p-3 w-full text-lg transition shadow-sm hover:shadow-md cursor-pointer disabled:cursor-auto disabled:bg-gray-300"
+          >
+              {isLoading ? <ClipLoader size={25} color="white" /> : "Close Modal"}
+          </button>
       </form>
     </div>
   );

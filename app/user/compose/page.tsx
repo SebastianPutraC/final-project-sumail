@@ -6,7 +6,7 @@ export default function ComposePage() {
   return (
     <>
       <div>{Header()}</div>
-      <div>{ComposeForm()}</div>
+      <ComposeForm></ComposeForm>
     </>
   );
 }
