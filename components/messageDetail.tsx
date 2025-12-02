@@ -111,14 +111,8 @@ export default function MessageDetail(slug: SlugProps) {
 
     return (
         <>
-            {composeModalVisible && <div>
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/50" />
-                    <div className="relative bg-white rounded-lg shadow-lg w-full max-w-225 max-h-135 mx-4 p-5">
-                        <ComposeForm hideModal={hideComposeModal} />
-                    </div>
-                </div>
-            </div>}
+            {composeModalVisible &&
+                <ComposeForm hideModal={hideComposeModal} />}
             <div className="listContainer">
                 {errorMessage ? (
                     <p style={{ color: 'red' }}>{errorMessage}</p>
