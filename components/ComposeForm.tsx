@@ -19,7 +19,12 @@ import { toast } from "react-toastify";
 import { ClipLoader } from "react-spinners";
 import { MessageData, Receiver, FormValues } from "@/utils/types";
 
-export default function ComposeForm() {
+interface ComposeFormProps {
+  type?: string;
+  defaultData?: any;
+}
+
+export default function ComposeForm({ type, defaultData }: ComposeFormProps) {
   const [allMessages, setAllMessages] = useState<MessageData[]>([]);
   const [allUsers, setAllUsers] = useState<Receiver[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -33,6 +38,7 @@ export default function ComposeForm() {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors, isValid },
   } = useForm({
     resolver: yupResolver(composeSchema),
@@ -123,11 +129,19 @@ export default function ComposeForm() {
   async function onSubmit(data: FormValues) {
     const payload = {
       senderId: user.id,
+      senderEmail: user.email,
       receiverId:
         typeof selectedReceiver !== "string" ? selectedReceiver?.id : null,
-      receiverEmail: selectedReceiver === "string" ? selectedReceiver : null,
+      receiverEmail:
+        typeof selectedReceiver !== "string"
+          ? selectedReceiver?.email
+          : selectedReceiver,
       title: data.subject,
       content: data.content,
+      replyFromMessageId:
+        type === "reply"
+          ? [...(defaultData.replyFromMessageId ?? []), defaultData.id]
+          : "",
       sentDate: Timestamp.fromDate(new Date()),
       starredId: ["0"],
     };
@@ -137,9 +151,11 @@ export default function ComposeForm() {
 
       await addDoc(collection(firebase.db, "messages"), payload);
       toast.success("Email has been sent!");
-      setTimeout(() => {
-        router.push("/mail/sent");
-      }, 1000);
+      if (type !== "reply") {
+        setTimeout(() => {
+          router.push("/mail/sent");
+        }, 1000);
+      }
     } catch (err) {
       console.error(err);
       toast.error("Failed to send email");
@@ -198,19 +214,30 @@ export default function ComposeForm() {
     );
   }, [selectedReceiver, setValue]);
 
+  useEffect(() => {
+    if (type === "reply") {
+      setValue("receiver", defaultData.senderEmail);
+      setSelectedReceiver({
+        id: defaultData.senderId,
+        email: defaultData.senderEmail,
+      });
+      setValue("subject", defaultData.title);
+    }
+  }, [type, defaultData, setValue]);
+
   return (
     <div className="border border-gray-200 rounded-lg shadow-sm px-5 py-3">
       <form
         className="flex flex-col gap-2"
         onSubmit={handleSubmit(onSubmit)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
+          if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
             e.preventDefault();
           }
         }}
       >
         <div className="relative">
-          <div className="flex items-center">
+          <div className={`flex items-center ${type === "reply" && "hidden"}`}>
             <label className="font-medium text-nowrap w-20 mr-3">Send To</label>
             {selectedReceiver && (
               <div className="flex items-center gap-2 bg-blue-100 text-blue-700 px-2 rounded-full w-fit">
@@ -254,7 +281,9 @@ export default function ComposeForm() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div
+          className={`flex items-center gap-3 ${type === "reply" && "hidden"}`}
+        >
           <label className="w-20 font-medium">Subject</label>
           <input
             {...register("subject")}
@@ -281,7 +310,13 @@ export default function ComposeForm() {
           disabled={!isValid}
           className="flex items-center justify-center bg-[#00B4D8] hover:bg-[#0096C7] font-semibold text-white rounded-lg p-3 w-full text-lg transition shadow-sm hover:shadow-md cursor-pointer disabled:cursor-auto disabled:bg-gray-300"
         >
-          {isLoading ? <ClipLoader size={25} color="white" /> : "Send Message"}
+          {isLoading ? (
+            <ClipLoader size={25} color="white" />
+          ) : type === "reply" ? (
+            "Send Reply"
+          ) : (
+            "Send Message"
+          )}
         </button>
       </form>
     </div>
