@@ -23,18 +23,27 @@ export default function Sidebar() {
         setComposeModalVisible(false);
     };
 
+    const [isOpen, setIsOpen] = useState(false)
+
   return (
       <div>
           {composeModalVisible &&
               <ComposeForm hideModal={hideComposeModal} />}
-          <aside className="p-8 flex flex-col items-center gap-10">
+          {/* <aside className="p-8 flex flex-col items-center gap-10"> */}
+          <aside className={`fixed p-6 flex flex-col gap-8 h-full bg-[#F7FDFE] shadow-md transition-all duration-300
+          ${isOpen ? "w-48" : "w-20"} z-50`}>
               {/* Burger */}
-              <MenuIcon className="w-9! h-9! -ml-1" />
+              <button onClick={() => setIsOpen(!isOpen)}
+                className="flex justify-center"
+              >
+                <MenuIcon className="w-9! h-9!" />
+                {/* <MenuIcon className="w-9! h-9! -ml-1" /> */}
+              </button>
               {/* Content */}
               <nav className="flex flex-col gap-5 text-center">
                   <button
                       //href="/mail/compose"
-                      className={`w-fit p-2 rounded-lg group hover:bg-[#03045E] cursor-pointer ${
+                      className={`flex items-center gap-3 p-2 rounded-lg group hover:bg-[#03045E] cursor-pointer ${
                           composeModalVisible ? "bg-[#03045E] hover:bg-[#0077B6]!" : ""
                       }`}
                       onClick={showComposeModal}
@@ -44,11 +53,12 @@ export default function Sidebar() {
                               composeModalVisible ? "text-white" : ""
                           }`}
                       />
+                      {isOpen && <span>Write</span>}
                   </button>
 
                   <Link
                       href="/mail/inbox"
-                      className={`w-fit p-2 rounded-lg group hover:bg-[#03045E] ${
+                      className={`flex items-center gap-3 p-2 rounded-lg group hover:bg-[#03045E] ${
                           inbox ? "bg-[#03045E] hover:bg-[#0077B6]!" : ""
                       }`}
                   >
@@ -57,16 +67,18 @@ export default function Sidebar() {
                               inbox ? "text-white" : ""
                           }`}
                       />
+                      {isOpen && <span>Inbox</span>}
                   </Link>
                   <Link
                       href="/mail/starred"
-                      className="w-fit p-2 rounded-lg group hover:bg-[#03045E]"
+                      className="flex items-center gap-3 p-2 rounded-lg group hover:bg-[#03045E]"
                   >
                       <StarBorderOutlinedIcon className="w-7! h-7! text-[#03045E] group-hover:text-white" />
+                      {isOpen && <span>Starred</span>}
                   </Link>
                   <Link
                       href="/mail/sent"
-                      className={`w-fit p-2 rounded-lg group hover:bg-[#03045E] ${
+                      className={`flex items-center gap-3 p-2 rounded-lg group hover:bg-[#03045E] ${
                           sent ? "bg-[#03045E] hover:bg-[#0077B6]!" : ""
                       }`}
                   >
@@ -75,6 +87,7 @@ export default function Sidebar() {
                               sent ? "text-white" : ""
                           }`}
                       />
+                      {isOpen && <span>Sent</span>}
                   </Link>
               </nav>
           </aside>
