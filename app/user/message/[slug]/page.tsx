@@ -1,4 +1,4 @@
-import MessageDetail from "../../../../components/messageDetail";
+import MessageDetail from "../../../../components/MessageDetail";
 import Header from "@/components/Header";
 
 export default async function MessageDetailPage({
