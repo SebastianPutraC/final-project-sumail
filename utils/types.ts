@@ -21,7 +21,8 @@ export interface MessageProps {
   title: string;
   content: string;
   sentDate: Date;
-  starred?: boolean;
+  starred?: boolean | undefined;
+  history?: MessageProps[];
 }
 
 export interface MessageListProps {

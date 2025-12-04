@@ -19,7 +19,7 @@ export default function Sidebar() {
   const inbox = pathname.includes("inbox");
   const starred = pathname.includes("starred");
   const sent = pathname.includes("sent");
-  const modalRef = useRef(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
 
   const sidebarArr = [
     { checkPath: compose, Icon: CreateOutlinedIcon, path: "compose" },

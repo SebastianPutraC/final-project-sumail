@@ -226,12 +226,12 @@ export function MessageList({ user, type }: MessageListProps) {
                       {m.starred ? (
                         <StarIcon
                           className="w-5! h-5! text-[#03045E]"
-                          onClick={() => toggleStar(m.id, m.starred)}
+                          onClick={() => toggleStar(m.id, m.starred ?? false)}
                         />
                       ) : (
                         <StarBorderOutlinedIcon
                           className="w-5! h-5!"
-                          onClick={() => toggleStar(m.id, m.starred)}
+                          onClick={() => toggleStar(m.id, m.starred ?? false)}
                         />
                       )}
                     </div>

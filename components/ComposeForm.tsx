@@ -17,12 +17,12 @@ import { composeSchema } from "@/validation/composeSchema";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "react-toastify";
 import { ClipLoader } from "react-spinners";
-import { MessageData, Receiver, FormValues } from "@/utils/types";
+import { MessageData, Receiver, FormValues, MessageProps } from "@/utils/types";
 import CloseIcon from "@mui/icons-material/Close";
 
 interface ComposeFormProps {
   type?: string;
-  defaultData?: any;
+  defaultData?: MessageProps;
   isModal?: boolean;
   hideModal?: () => void;
   className?: string;
@@ -43,6 +43,7 @@ export default function ComposeForm({
   const [suggestions, setSuggestions] = useState<Receiver[]>([]);
   const [selectedReceiver, setSelectedReceiver] = useState<Receiver | string>();
   const [isLoading, setIsLoading] = useState(false);
+  console.log("dd", defaultData);
 
   const router = useRouter();
   const { user } = GetCurrentUser();
@@ -50,7 +51,6 @@ export default function ComposeForm({
     register,
     handleSubmit,
     setValue,
-    getValues,
     clearErrors,
     formState: { errors, isValid },
   } = useForm({
@@ -106,7 +106,7 @@ export default function ComposeForm({
       content: data.content,
       replyFromMessageId:
         type === "reply"
-          ? [...(defaultData.replyFromMessageId ?? []), defaultData.id]
+          ? [...(defaultData?.replyFromMessageId ?? []), defaultData?.id]
           : "",
       sentDate: Timestamp.fromDate(new Date()),
       starredId: ["0"],
@@ -174,23 +174,23 @@ export default function ComposeForm({
 
   useEffect(() => {
     if (type === "reply") {
-      setValue("receiver", defaultData.senderEmail);
+      setValue("receiver", defaultData?.senderEmail ?? "");
       setSelectedReceiver({
-        id: defaultData.senderId,
-        email: defaultData.senderEmail,
+        id: defaultData?.senderId,
+        email: defaultData?.senderEmail,
       });
-      setValue("subject", defaultData.title);
+      setValue("subject", defaultData?.title ?? "");
       setValue("content", "");
     } else if (type === "forward") {
-      const dateText = defaultData.sentDate
+      const dateText = defaultData?.sentDate
         ? defaultData.sentDate.toLocaleString()
         : "(unknown date)";
 
       // 1. Forwarded Header Gmail Style
       const forwardHeader = `---------- Forwarded Message ----------
-From: ${defaultData.senderEmail}
+From: ${defaultData?.senderEmail}
 Date: ${dateText}
-Subject: ${defaultData.title}
+Subject: ${defaultData?.title}
 
 `;
 
@@ -198,9 +198,9 @@ Subject: ${defaultData.title}
       const originalContent =
         `
 ----------------------------------------
-On ${defaultData.sentDate}, ${defaultData.senderEmail} wrote:
+On ${defaultData?.sentDate}, ${defaultData?.senderEmail} wrote:
 
-${defaultData.content}
+${defaultData?.content}
 
 ` || "";
 
@@ -208,7 +208,7 @@ ${defaultData.content}
       let historyText = "";
 
       if (
-        Array.isArray(defaultData.history) &&
+        Array.isArray(defaultData?.history) &&
         defaultData.history.length > 0
       ) {
         defaultData.history.forEach((h) => {
@@ -229,12 +229,13 @@ ${h.content}
       // 4. Gabungkan semuanya
       const fullForwardContent = forwardHeader + historyText + originalContent;
 
-      setValue("subject", `Fwd: ${defaultData.title}`);
+      setValue("subject", `Fwd: ${defaultData?.title}`);
       setValue("content", fullForwardContent);
       setValue("receiver", "");
       setSelectedReceiver(undefined);
     }
   }, [type, defaultData, setValue, setSelectedReceiver]);
+  console.log("dh", defaultData?.history);
 
   useEffect(() => {
     if (selectedReceiver === undefined) return;

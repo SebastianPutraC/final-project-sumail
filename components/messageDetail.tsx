@@ -71,7 +71,6 @@ export default function MessageDetail(slug: SlugProps) {
   useEffect(() => {
     const getThread = async () => {
       try {
-        // 1) fetch main message
         const mainRef = doc(firebase.db, "messages", slug.slug);
         const mainSnap = await getDoc(mainRef);
 
@@ -82,7 +81,6 @@ export default function MessageDetail(slug: SlugProps) {
 
         const mainData = mainSnap.data();
 
-        // get sender email for main
         let mainSender = "Unknown";
         if (mainData.senderId) {
           const senderRef = doc(firebase.db, "users", mainData.senderId);
@@ -104,7 +102,6 @@ export default function MessageDetail(slug: SlugProps) {
           sentDate: mainData.sentDate?.toDate(),
         };
 
-        // 2) fetch all replies where chain includes main id
         const repliesQuery = query(
           collection(firebase.db, "messages"),
           where("replyFromMessageId", "array-contains", slug.slug),
@@ -113,7 +110,6 @@ export default function MessageDetail(slug: SlugProps) {
 
         const repliesSnap = await getDocs(repliesQuery);
 
-        // 3) Build raw list + map for lookup
         const allMessages: MessageWithHistory[] = [mainMessage];
         const messageMap: Record<string, MessageWithHistory> = {};
         messageMap[mainMessage.id] = mainMessage;
@@ -146,15 +142,18 @@ export default function MessageDetail(slug: SlugProps) {
           messageMap[msg.id] = msg;
         }
 
-        // 4) For each message, build its history array (based on replyFromMessageId chain)
         const withHistory = allMessages.map((msg) => {
           if (!msg.replyFromMessageId || msg.replyFromMessageId.length === 0) {
             return msg;
           }
 
-          // Map chain ids to message objects (only include found ones)
-          const historyList: MessageWithHistory[] = msg.replyFromMessageId
-            .map((id: string) => messageMap[id])
+          const toArray = (val?: string | string[]) =>
+            val ? (Array.isArray(val) ? val : [val]) : [];
+
+          const ids = toArray(msg.replyFromMessageId);
+
+          const historyList: MessageWithHistory[] = ids
+            .map((id) => messageMap[id])
             .filter(Boolean);
 
           return {
@@ -164,7 +163,6 @@ export default function MessageDetail(slug: SlugProps) {
         });
         console.log("hist", withHistory);
 
-        // 5) set messages preserving order: main first then replies (they already are in allMessages)
         setMessage(withHistory);
       } catch (err) {
         console.error(err);
@@ -175,7 +173,6 @@ export default function MessageDetail(slug: SlugProps) {
     if (slug.slug) getThread();
   }, [slug.slug]);
 
-  // render - if you prefer processedMessage, it's `message` here
   return message?.map((m) => {
     const isOpen = openMap[m.id] ?? true;
 
