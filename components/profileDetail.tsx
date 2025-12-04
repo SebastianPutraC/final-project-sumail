@@ -19,6 +19,11 @@ interface SlugProps{
     slug : string
 }
 
+interface ErrorProps{
+    upload : string,
+    name : string,
+}
+
 export default function ProfileDetail(slug : SlugProps)
 {
     const router = useRouter();
@@ -26,6 +31,7 @@ export default function ProfileDetail(slug : SlugProps)
 
     const profilePicRef = useRef<HTMLImageElement>(null);
     const [profilePic, setProfilePic] = useState<File | null>(null)
+    const [error, setErrors] = useState<ErrorProps>({upload : "", name : ""});
 
     const [newName, setNewName] = useState("");
 
@@ -50,21 +56,24 @@ export default function ProfileDetail(slug : SlugProps)
     }
 
     const handleUpload = async () => {
-        if (!profilePic) return;
-
-        const storageRef = ref(firebase.storage, `profile-pictures/${user?.id}`);
-
         try {
+            if (!profilePic) {
+                setErrors({upload: "No file uploaded", name : ""})
+                return;
+            }
+            const storageRef = ref(firebase.storage, `profile-pictures/${user?.id}`);
             const imageExtension = getFileExtension(profilePic.name);
             const supportedExtensions: string[] = ["jpg", "png", 'jpeg', 'jfif', 'pjpeg', 'pjp', 'svg', 'webp'];
             if (!supportedExtensions.includes(imageExtension)) {
-                throw new Error("File type not supported")
+                setErrors({upload: "File type not supported", name : ""})
+                return;
             }
 
             await uploadBytes(storageRef, profilePic);
             const pictureUrl = await getDownloadURL(storageRef);
 
             if (!user || !pictureUrl) {
+                setErrors({upload : "Can't find user profile picture", name : ""})
                throw new Error("No user or picture provided");
             }
 
@@ -85,10 +94,18 @@ export default function ProfileDetail(slug : SlugProps)
     const handleNameChange = async () => {
         try {
             if (user) {
-                await updateDoc(doc(firebase.db, "users", user.id), {
-                    name : newName
-                });
-                router.refresh();
+                if (newName.length > 0) {
+                    await updateDoc(doc(firebase.db, "users", user.id), {
+                        name : newName
+                    });
+                    router.refresh();
+                }
+                else{
+                    setErrors({upload: "", name : "Name cannot be empty"})
+                }
+            }
+            else {
+                throw new Error("User not found")
             }
         }
         catch (error) {
@@ -104,6 +121,7 @@ export default function ProfileDetail(slug : SlugProps)
     useEffect( () => {
         const getDetail = async () =>
         {
+            setErrors({name : "", upload : ""})
             const reference = doc(firebase.db, "users", slug.slug)
             const snapshot = await getDoc(reference)
             if (snapshot.exists())
@@ -188,7 +206,11 @@ export default function ProfileDetail(slug : SlugProps)
                         </button>
                     </div>
                 </div>
-                
+                {error.upload.length > 0 && <div className="flex gap-1">
+                    <p className="text-red-500 text-sm mt-1">
+                        {error.upload}
+                    </p>
+                </div>}
                 
                 <hr></hr>
                 <div className="flex flex-row my-2 items-center">
@@ -199,7 +221,11 @@ export default function ProfileDetail(slug : SlugProps)
                         <button className="border-2 border-[#00B4D8] text-[#00B4D8] hover:bg-[#00B4D8] hover:text-white font-semibold rounded-lg p-3 w-full max-w-xs transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer" onClick={handleNameChange}>Change Name</button>
                     </div>       
                 </div>
-                
+                {error.name.length > 0 && <div className="flex gap-1">
+                    <p className="text-red-500 text-sm mt-1">
+                        {error.name}
+                    </p>
+                </div>}
 
                 
             </div>
