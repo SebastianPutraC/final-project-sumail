@@ -178,10 +178,12 @@ export default function ProfileDetail(slug : SlugProps)
             <div className="border-[#00B4D8] border-2 rounded-lg py-4 px-20 my-4 w-[60vw] text-lg">
                 <div className="flex flex-row my-2 items-center">
                     <div className="flex-1">
-                        <input type="file" onChange={handleFileChange} />
+                        <input type="file" onChange={handleFileChange} id="file-input"
+                               className=" file:border-2 border-1 file:border-[black]  text-[grey] file:hover:bg-[#00B4D8] file:hover:text-white transition-all duration-200 file:cursor-pointer w-65 p-1 file:p-1"/>
                     </div>
                     <div className="flex-1">
-                        <button className="border-2 border-[#00B4D8] text-[#00B4D8] hover:bg-[#00B4D8] hover:text-white font-semibold rounded-lg p-3 w-full max-w-xs transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer" onClick={handleUpload}>
+                        <button
+                            className="border-2 border-[#00B4D8] text-[#00B4D8] hover:bg-[#00B4D8] hover:text-white font-semibold rounded-lg p-3 w-full max-w-xs transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer" onClick={handleUpload}>
                             Upload Profile Picture
                         </button>
                     </div>
@@ -191,7 +193,7 @@ export default function ProfileDetail(slug : SlugProps)
                 <hr></hr>
                 <div className="flex flex-row my-2 items-center">
                     <div className="flex-1">
-                        <input style={{ outlineStyle: 'solid'}} type="text" name="newName" onChange={handleNameInputChange} placeholder="New Name"/>
+                        <input className='p-2 w-65 border-1' type="text" name="newName" onChange={handleNameInputChange} placeholder=" New Name"/>
                     </div>
                     <div className="flex-1">
                         <button className="border-2 border-[#00B4D8] text-[#00B4D8] hover:bg-[#00B4D8] hover:text-white font-semibold rounded-lg p-3 w-full max-w-xs transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer" onClick={handleNameChange}>Change Name</button>
