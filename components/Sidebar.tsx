@@ -67,6 +67,7 @@ export default function Sidebar() {
               hideModal={() => setComposeModalVisible(false)}
               isModal={true}
               className="max-w-225"
+              openForm={composeModalVisible}
             />
           </div>
         </div>

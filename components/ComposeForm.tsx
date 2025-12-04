@@ -26,6 +26,7 @@ interface ComposeFormProps {
   isModal?: boolean;
   hideModal?: () => void;
   className?: string;
+  openForm?: boolean;
 }
 
 export default function ComposeForm({
@@ -34,6 +35,7 @@ export default function ComposeForm({
   isModal,
   hideModal,
   className,
+  openForm,
 }: ComposeFormProps) {
   const [allMessages, setAllMessages] = useState<MessageData[]>([]);
   const [allUsers, setAllUsers] = useState<Receiver[]>([]);
@@ -48,8 +50,11 @@ export default function ComposeForm({
     register,
     handleSubmit,
     setValue,
+    getValues,
+    clearErrors,
     formState: { errors, isValid },
   } = useForm({
+    mode: "onChange",
     resolver: yupResolver(composeSchema),
     defaultValues: { receiver: "", subject: "", content: "" },
   });
@@ -82,6 +87,7 @@ export default function ComposeForm({
 
   const handleSelect = (user: Receiver) => {
     setSelectedReceiver(user);
+    setValue("receiver", String(user.email));
     setSearchInput("");
     setSuggestions([]);
   };
@@ -105,6 +111,7 @@ export default function ComposeForm({
       sentDate: Timestamp.fromDate(new Date()),
       starredId: ["0"],
     };
+    console.log("pay", payload);
 
     try {
       setIsLoading(true);
@@ -166,15 +173,6 @@ export default function ComposeForm({
   }, []);
 
   useEffect(() => {
-    setValue(
-      "receiver",
-      typeof selectedReceiver === "string"
-        ? selectedReceiver
-        : selectedReceiver?.email || ""
-    );
-  }, [selectedReceiver, setValue]);
-
-  useEffect(() => {
     if (type === "reply") {
       setValue("receiver", defaultData.senderEmail);
       setSelectedReceiver({
@@ -182,9 +180,87 @@ export default function ComposeForm({
         email: defaultData.senderEmail,
       });
       setValue("subject", defaultData.title);
-    }
-  }, [type, defaultData, setValue]);
+      setValue("content", "");
+    } else if (type === "forward") {
+      const dateText = defaultData.sentDate
+        ? defaultData.sentDate.toLocaleString()
+        : "(unknown date)";
 
+      // 1. Forwarded Header Gmail Style
+      const forwardHeader = `---------- Forwarded Message ----------
+From: ${defaultData.senderEmail}
+Date: ${dateText}
+Subject: ${defaultData.title}
+
+`;
+
+      // 2. Original content
+      const originalContent =
+        `
+----------------------------------------
+On ${defaultData.sentDate}, ${defaultData.senderEmail} wrote:
+
+${defaultData.content}
+
+` || "";
+
+      // 3. History builder (karena history berupa array of object)
+      let historyText = "";
+
+      if (
+        Array.isArray(defaultData.history) &&
+        defaultData.history.length > 0
+      ) {
+        defaultData.history.forEach((h) => {
+          const hDate = h.sentDate
+            ? new Date(h.sentDate).toLocaleString()
+            : "(unknown date)";
+
+          historyText += `
+----------------------------------------
+On ${hDate}, ${h.senderEmail} wrote:
+
+${h.content}
+
+`;
+        });
+      }
+
+      // 4. Gabungkan semuanya
+      const fullForwardContent = forwardHeader + historyText + originalContent;
+
+      setValue("subject", `Fwd: ${defaultData.title}`);
+      setValue("content", fullForwardContent);
+      setValue("receiver", "");
+      setSelectedReceiver(undefined);
+    }
+  }, [type, defaultData, setValue, setSelectedReceiver]);
+
+  useEffect(() => {
+    if (selectedReceiver === undefined) return;
+
+    setValue(
+      "receiver",
+      typeof selectedReceiver === "string"
+        ? selectedReceiver
+        : selectedReceiver?.email || "",
+      { shouldValidate: true }
+    );
+  }, [selectedReceiver, setValue]);
+
+  useEffect(() => {
+    if (!openForm) {
+      setValue("receiver", "");
+      setValue("subject", "");
+      setValue("content", "");
+      setSelectedReceiver(undefined);
+      clearErrors();
+    }
+  }, [openForm, clearErrors, setValue]);
+
+  console.log(defaultData);
+
+  if (!openForm) return;
   return (
     <div className={`flex items-center justify-center w-full ${className}`}>
       <div className="relative bg-white rounded-lg w-full">
@@ -213,7 +289,7 @@ export default function ComposeForm({
                 className={`flex items-center ${type === "reply" && "hidden"}`}
               >
                 <label className="font-medium text-nowrap w-20 mr-3">
-                  Send To
+                  {type === "forward" ? "Forward To" : "Send To"}
                 </label>
 
                 {/* Selected receiver pill */}
@@ -224,7 +300,10 @@ export default function ComposeForm({
                       : selectedReceiver.email}
                     <button
                       type="button"
-                      onClick={() => setSelectedReceiver(undefined)}
+                      onClick={() => {
+                        setSelectedReceiver(undefined);
+                        setValue("receiver", "");
+                      }}
                       className="text-sm ml-1 hover:text-red-600"
                     >
                       ×
@@ -235,7 +314,9 @@ export default function ComposeForm({
                 {/* Search input */}
                 <input
                   value={searchInput}
-                  onChange={(e) => handleSearch(e.target.value)}
+                  onChange={(e) => {
+                    handleSearch(e.target.value);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       setSelectedReceiver(searchInput);
@@ -254,7 +335,9 @@ export default function ComposeForm({
                   {suggestions.map((u) => (
                     <div
                       key={u.id}
-                      onClick={() => handleSelect(u)}
+                      onClick={() => {
+                        handleSelect(u);
+                      }}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                     >
                       {u.email}
@@ -264,10 +347,10 @@ export default function ComposeForm({
               )}
             </div>
 
-            {/* SUBJECT (HIDDEN IF REPLY) */}
+            {/* SUBJECT (hidden if reply & forward) */}
             <div
               className={`flex items-center gap-3 ${
-                type === "reply" && "hidden"
+                (type === "reply" || type === "forward") && "hidden"
               }`}
             >
               <label className="w-20 font-medium">Subject</label>
@@ -278,10 +361,10 @@ export default function ComposeForm({
               />
             </div>
 
-            {/* CONTENT */}
+            {/* CONTENT (hidden if forward) */}
             <textarea
               {...register("content")}
-              className="rounded-lg h-100 p-3 resize-none"
+              className={`rounded-lg h-100 p-3 resize-none`}
               placeholder="Write your mail here..."
             />
 
@@ -299,7 +382,7 @@ export default function ComposeForm({
             {/* SUBMIT BUTTON */}
             <button
               type="submit"
-              disabled={!isValid}
+              disabled={!isValid || Object.keys(errors).length > 0}
               className="flex items-center justify-center bg-[#00B4D8] hover:bg-[#0096C7] font-semibold text-white rounded-lg p-3 w-full text-lg transition shadow-sm hover:shadow-md cursor-pointer disabled:cursor-auto disabled:bg-gray-300"
             >
               {isLoading ? (

@@ -17,27 +17,22 @@ import ShortcutIcon from "@mui/icons-material/Shortcut";
 import ComposeForm from "./ComposeForm";
 import { MessageProps } from "@/utils/types";
 
-// interface MessageProps {
-//   id: string;
-//   senderId: string;
-//   senderEmail?: string;
-//   receiverId: string;
-//   receiverEmail: string;
-//   title: string;
-//   content: string;
-//   sentDate: Date;
-// }
-
 interface SlugProps {
   slug: string;
 }
 
+type MessageWithHistory = MessageProps & { history?: MessageProps[] };
+
 export default function MessageDetail(slug: SlugProps) {
   const router = useRouter();
-  const [message, setMessage] = useState<MessageProps[]>([]);
+  const [message, setMessage] = useState<MessageWithHistory[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
-  const [openReply, setOpenReply] = useState<Record<string, boolean>>({});
+  const [activeForm, setActiveForm] = useState<null | "reply" | "forward">(
+    null
+  );
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [openHistory, setOpenHistory] = useState<Record<string, boolean>>({});
 
   const toggleOpen = (id: string) => {
     setOpenMap((prev) => ({
@@ -47,7 +42,28 @@ export default function MessageDetail(slug: SlugProps) {
   };
 
   function toggleReply(id: string) {
-    setOpenReply((prev) => ({
+    if (activeForm === "reply" && activeId === id) {
+      setActiveForm(null);
+      setActiveId(null);
+      return;
+    }
+    setActiveForm("reply");
+    setActiveId(id);
+  }
+
+  function toggleForward(id: string) {
+    if (activeForm === "forward" && activeId === id) {
+      setActiveForm(null);
+      setActiveId(null);
+      return;
+    }
+    setActiveForm("forward");
+    setActiveId(id);
+  }
+
+  function toggleHistoryFor(id: string) {
+    setOpenHistory((prev) => ({
+      ...prev,
       [id]: !prev[id],
     }));
   }
@@ -55,6 +71,7 @@ export default function MessageDetail(slug: SlugProps) {
   useEffect(() => {
     const getThread = async () => {
       try {
+        // 1) fetch main message
         const mainRef = doc(firebase.db, "messages", slug.slug);
         const mainSnap = await getDoc(mainRef);
 
@@ -65,6 +82,7 @@ export default function MessageDetail(slug: SlugProps) {
 
         const mainData = mainSnap.data();
 
+        // get sender email for main
         let mainSender = "Unknown";
         if (mainData.senderId) {
           const senderRef = doc(firebase.db, "users", mainData.senderId);
@@ -74,7 +92,7 @@ export default function MessageDetail(slug: SlugProps) {
           }
         }
 
-        const mainMessage: MessageProps = {
+        const mainMessage: MessageWithHistory = {
           id: mainSnap.id,
           title: mainData.title,
           content: mainData.content,
@@ -82,9 +100,11 @@ export default function MessageDetail(slug: SlugProps) {
           senderEmail: mainSender,
           receiverId: mainData.receiverId,
           receiverEmail: mainData.receiverEmail,
+          replyFromMessageId: mainData.replyFromMessageId ?? [],
           sentDate: mainData.sentDate?.toDate(),
         };
 
+        // 2) fetch all replies where chain includes main id
         const repliesQuery = query(
           collection(firebase.db, "messages"),
           where("replyFromMessageId", "array-contains", slug.slug),
@@ -93,7 +113,10 @@ export default function MessageDetail(slug: SlugProps) {
 
         const repliesSnap = await getDocs(repliesQuery);
 
-        const replies: MessageProps[] = [];
+        // 3) Build raw list + map for lookup
+        const allMessages: MessageWithHistory[] = [mainMessage];
+        const messageMap: Record<string, MessageWithHistory> = {};
+        messageMap[mainMessage.id] = mainMessage;
 
         for (const docSnap of repliesSnap.docs) {
           const data = docSnap.data();
@@ -107,20 +130,42 @@ export default function MessageDetail(slug: SlugProps) {
             }
           }
 
-          replies.push({
+          const msg: MessageWithHistory = {
             id: docSnap.id,
             title: data.title,
             content: data.content,
             senderId: data.senderId,
-            senderEmail: senderEmail,
+            senderEmail,
             receiverId: data.receiverId,
             receiverEmail: data.receiverEmail,
             replyFromMessageId: data.replyFromMessageId ?? [],
             sentDate: data.sentDate?.toDate(),
-          });
+          };
+
+          allMessages.push(msg);
+          messageMap[msg.id] = msg;
         }
 
-        setMessage([mainMessage, ...replies]);
+        // 4) For each message, build its history array (based on replyFromMessageId chain)
+        const withHistory = allMessages.map((msg) => {
+          if (!msg.replyFromMessageId || msg.replyFromMessageId.length === 0) {
+            return msg;
+          }
+
+          // Map chain ids to message objects (only include found ones)
+          const historyList: MessageWithHistory[] = msg.replyFromMessageId
+            .map((id: string) => messageMap[id])
+            .filter(Boolean);
+
+          return {
+            ...msg,
+            history: historyList,
+          };
+        });
+        console.log("hist", withHistory);
+
+        // 5) set messages preserving order: main first then replies (they already are in allMessages)
+        setMessage(withHistory);
       } catch (err) {
         console.error(err);
         setErrorMessage("Error loading message thread");
@@ -130,38 +175,9 @@ export default function MessageDetail(slug: SlugProps) {
     if (slug.slug) getThread();
   }, [slug.slug]);
 
-  // const replyMessage = () => {
-  //   if (!message) return;
-
-  //   // Create URL parameters
-  //   const params = new URLSearchParams({
-  //     mode: "reply",
-  //     sender: message.senderEmail || "", // Pass the email we fetched
-  //     title: message.title,
-  //     content: message.content,
-  //   });
-
-  //   // Navigate to Compose page with data
-  //   router.push(`/user/compose?${params.toString()}`);
-  // };
-
-  // const forwardMessage = () => {
-  //   if (!message) return;
-
-  //   // Create URL parameters (No sender needed for forward)
-  //   const params = new URLSearchParams({
-  //     mode: "forward",
-  //     title: message.title,
-  //     content: message.content,
-  //   });
-
-  //   // Navigate to Compose page
-  //   router.push(`/user/compose?${params.toString()}`);
-  // };
-
+  // render - if you prefer processedMessage, it's `message` here
   return message?.map((m) => {
     const isOpen = openMap[m.id] ?? true;
-    const isReply = openReply[m.id];
 
     return (
       <div
@@ -187,15 +203,16 @@ export default function MessageDetail(slug: SlugProps) {
                 from: {m.senderEmail}
               </span>
               <span className="text-gray-500 text-sm">
-                {m.sentDate
-                  .toLocaleString("en-GB", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                  .replace(",", " |")}
+                {m.sentDate &&
+                  m.sentDate
+                    .toLocaleString("en-GB", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                    .replace(",", " |")}
               </span>
             </div>
           </div>
@@ -207,14 +224,16 @@ export default function MessageDetail(slug: SlugProps) {
               className="flex items-center gap-1 border-2 border-[#03045E] py-1 px-3 rounded-lg hover:bg-gray-100"
               onClick={(e) => {
                 e.stopPropagation();
+                toggleForward(m.id);
               }}
             >
               <ShortcutIcon className="h-5! w-5!" />
               Forward
             </button>
+
             <button
               type="button"
-              className="flex items-center gap-1 py-1 px-3 rounded-lg bg-[#03045E] border-2 border-[#03045E] text-white hover:bg-white hover:text-[#03045E]"
+              className="flex items-center gap-1 py-1 px-3 rounded-lg bg-[#03045E] text-white hover:bg-[#05078c] "
               onClick={(e) => {
                 e.stopPropagation();
                 toggleReply(m.id);
@@ -223,6 +242,19 @@ export default function MessageDetail(slug: SlugProps) {
               <ReplyIcon className="h-5! w-5!" />
               Reply
             </button>
+
+            {/* per-message history toggle */}
+            {m.history && m.history.length > 0 && (
+              <button
+                className="text-blue-600 underline text-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleHistoryFor(m.id);
+                }}
+              >
+                {openHistory[m.id] ? "Hide History" : "Show History"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -230,14 +262,42 @@ export default function MessageDetail(slug: SlugProps) {
         {isOpen && (
           <div>
             <p className="whitespace-pre-wrap">{m.content}</p>
+
+            {/* render history only for this message when toggled */}
+            {openHistory[m.id] && m.history && m.history.length > 0 && (
+              <div className="mt-4 bg-gray-100 p-3 rounded-lg text-sm flex flex-col gap-3">
+                <p className="font-semibold">History:</p>
+
+                {m.history.map((h) => (
+                  <div
+                    key={h.id}
+                    className="border-l-4 border-gray-400 pl-3 py-1 bg-white rounded"
+                  >
+                    <p className="text-xs text-gray-500">
+                      from: {h.senderEmail} •{" "}
+                      {h.sentDate &&
+                        h.sentDate
+                          .toLocaleString("en-GB", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                          .replace(",", " |")}
+                    </p>
+
+                    <p className="whitespace-pre-wrap mt-1">{h.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Reply Form */}
-        {isReply && (
-          <div>
-            <ComposeForm type="reply" defaultData={m} />
-          </div>
+        {/* Reply & Forward Form */}
+        {activeForm && activeId === m.id && (
+          <ComposeForm type={activeForm} defaultData={m} openForm={true} />
         )}
       </div>
     );
