@@ -13,6 +13,7 @@ interface UserProps {
     name: string;
     joinedDate : string;
     profilePicture: string;
+    role : string;
 }
 
 interface SlugProps{
@@ -80,7 +81,7 @@ export default function ProfileDetail(slug : SlugProps)
             await updateDoc(doc(firebase.db, "users", user.id), {
                 profilePicture : user.id
             });
-            router.refresh();
+            location.reload();
 
         } catch (error) {
             console.error('Error uploading picture', error);
@@ -98,7 +99,8 @@ export default function ProfileDetail(slug : SlugProps)
                     await updateDoc(doc(firebase.db, "users", user.id), {
                         name : newName
                     });
-                    router.refresh();
+
+                    location.reload();
                 }
                 else{
                     setErrors({upload: "", name : "Name cannot be empty"})
@@ -133,6 +135,7 @@ export default function ProfileDetail(slug : SlugProps)
                         email: snapshot.data().email,
                         joinedDate: snapshot.data()?.createdAt ? snapshot.data().createdAt.toDate().toLocaleDateString() : "Unknown",
                         profilePicture: snapshot.data().profilePicture,
+                        role : snapshot.data().role,
                     }
 
                 setUser(data);
@@ -191,13 +194,21 @@ export default function ProfileDetail(slug : SlugProps)
                             {user && user.joinedDate}
                         </div>
                     </div>
+                    <div className="flex flex-row my-2">
+                        <div className="flex-1">
+                            Role
+                        </div>
+                        <div className="flex-1">
+                            {user && user.role}
+                        </div>
+                    </div>
                 </div>
             </div>
             <div className="border-[#00B4D8] border-2 rounded-lg py-4 px-20 my-4 w-[60vw] text-lg">
                 <div className="flex flex-row my-2 items-center">
                     <div className="flex-1">
                         <input type="file" onChange={handleFileChange} id="file-input"
-                               className=" file:border-2 border-1 file:border-[black]  text-[grey] file:hover:bg-[#00B4D8] file:hover:text-white transition-all duration-200 file:cursor-pointer w-65 p-1 file:p-1"/>
+                               className=" file:border-2 border-1 rounded-md file:border-[black]  text-[grey] file:hover:bg-[#00B4D8] file:hover:text-white transition-all duration-200 file:cursor-pointer w-65 p-1 file:p-1"/>
                     </div>
                     <div className="flex-1">
                         <button
@@ -215,7 +226,7 @@ export default function ProfileDetail(slug : SlugProps)
                 <hr></hr>
                 <div className="flex flex-row my-2 items-center">
                     <div className="flex-1">
-                        <input className='p-2 w-65 border-1' type="text" name="newName" onChange={handleNameInputChange} placeholder=" New Name"/>
+                        <input className='p-2 w-65 rounded-md border-1' type="text" name="newName" onChange={handleNameInputChange} placeholder=" New Name"/>
                     </div>
                     <div className="flex-1">
                         <button className="border-2 border-[#00B4D8] text-[#00B4D8] hover:bg-[#00B4D8] hover:text-white font-semibold rounded-lg p-3 w-full max-w-xs transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer" onClick={handleNameChange}>Change Name</button>
