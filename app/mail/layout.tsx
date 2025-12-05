@@ -5,9 +5,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex">
       <Sidebar />
-      <div className="w-full">
+      <div className="flex-1">
         <UserHeader />
-        <main>{children}</main>
+        <main className="p-4">{children}</main>
       </div>
     </div>
   );
