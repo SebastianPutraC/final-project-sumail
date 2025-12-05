@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 import { SidebarLinkProps } from "@/utils/types";
 import { useEffect, useRef, useState } from "react";
 import ComposeForm from "@/components/ComposeForm";
+import { UseFormStateProps } from "react-hook-form";
 
 export default function Sidebar() {
   const [composeModalVisible, setComposeModalVisible] = useState(false);
@@ -20,6 +21,7 @@ export default function Sidebar() {
   const starred = pathname.includes("starred");
   const sent = pathname.includes("sent");
   const modalRef = useRef<HTMLDivElement | null>(null);
+  const [isOpen, setIsOpen] = useState(false)
 
   const sidebarArr = [
     { checkPath: compose, Icon: CreateOutlinedIcon, path: "compose" },
@@ -43,9 +45,9 @@ export default function Sidebar() {
 
   return (
     <div>
-      <aside className="p-8 flex flex-col items-center gap-10">
+      <aside className={`p-8 mr-6 bg-[#F7FDFE] shadow-md flex flex-col justify-start gap-10 transition-all duration-300 ${isOpen ? "w-50" : "w-25"} z-50 h-screen`}>
         {/* Burger */}
-        <MenuIcon className="w-9! h-9! -ml-1" />
+        <MenuIcon className="w-9! h-9! ml-1 cursor-pointer" onClick={() => setIsOpen(!isOpen)} />
         {/* Content */}
         <nav className="flex flex-col gap-5 text-center">
           {sidebarArr.map((item, i) => (
@@ -55,6 +57,7 @@ export default function Sidebar() {
               Icon={item.Icon}
               path={item.path}
               setModal={setComposeModalVisible}
+              isOpen={isOpen}
             />
           ))}
         </nav>
@@ -76,7 +79,7 @@ export default function Sidebar() {
   );
 }
 
-const SidebarLink = ({ checkPath, Icon, path, setModal }: SidebarLinkProps) => {
+const SidebarLink = ({ checkPath, Icon, path, setModal, isOpen }: SidebarLinkProps,) => {
   return (
     <Link
       href={path === "compose" ? "" : `/mail/${path}`}
@@ -89,15 +92,19 @@ const SidebarLink = ({ checkPath, Icon, path, setModal }: SidebarLinkProps) => {
           }
         }
       }}
-      className={`w-fit p-2 rounded-lg group hover:bg-[#03045E] ${
-        checkPath ? "bg-[#03045E] hover:bg-[#0077B6]!" : ""
+      className={`${isOpen ? "w-full" : "w-fit"} p-2 rounded-lg group hover:bg-[#03045E] hover:text-white ${
+        checkPath ? "bg-[#03045E] hover:bg-[#0077B6]! text-white" : ""
       }`}
     >
-      <Icon
+        <div className="flex flex-row items-center gap-4">
+            <Icon
         className={`w-7! h-7! text-[#03045E] group-hover:text-white ${
           checkPath ? "text-white" : ""
         }`}
       />
+      {isOpen && <span className="capitalize">{path}</span>}
+        </div>
+      
     </Link>
   );
 };
