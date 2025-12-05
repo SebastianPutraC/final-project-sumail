@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  where,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    where,
+    updateDoc, arrayRemove, arrayUnion,
 } from "firebase/firestore";
 import firebase from "../firebase/firebaseConfig";
 import { useRouter } from "next/navigation";
@@ -16,6 +17,7 @@ import ReplyIcon from "@mui/icons-material/Reply";
 import ShortcutIcon from "@mui/icons-material/Shortcut";
 import ComposeForm from "./ComposeForm";
 import { MessageProps } from "@/utils/types";
+import {GetCurrentUser} from "@/utils/CurrentUser";
 
 interface SlugProps {
   slug: string;
@@ -33,6 +35,7 @@ export default function MessageDetail(slug: SlugProps) {
   );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [openHistory, setOpenHistory] = useState<Record<string, boolean>>({});
+  const { user } = GetCurrentUser();
 
   const toggleOpen = (id: string) => {
     setOpenMap((prev) => ({
@@ -40,6 +43,26 @@ export default function MessageDetail(slug: SlugProps) {
       [id]: prev[id] === undefined ? false : !prev[id],
     }));
   };
+
+    const toggleStar = async (messageId: string, starred: boolean) => {
+        const ref = doc(firebase.db, "messages", messageId);
+
+        if (starred) {
+            await updateDoc(ref, {starredId: arrayRemove(user.id)});
+        } else {
+            await updateDoc(ref, {starredId: arrayUnion(user.id)});
+        }
+
+        location.reload();
+    }
+
+    const deleteMessage = async (messageId: string) => {
+        const ref = doc(firebase.db, "messages", messageId);
+
+        await updateDoc(ref, {activeId: arrayRemove(user.id)})
+
+        router.push("/mail/inbox")
+    }
 
   function toggleReply(id: string) {
     if (activeForm === "reply" && activeId === id) {
@@ -100,7 +123,13 @@ export default function MessageDetail(slug: SlugProps) {
           receiverEmail: mainData.receiverEmail,
           replyFromMessageId: mainData.replyFromMessageId ?? [],
           sentDate: mainData.sentDate?.toDate(),
+            starred : mainData.starredId.includes(user?.id),
+            readId : mainData.readId.includes(user?.id),
+            activeId : mainData.activeId,
         };
+        if (!mainMessage.readId && user?.id != ""){
+            await updateDoc(mainRef, { readId: arrayUnion(user?.id) });
+        }
 
         const repliesQuery = query(
           collection(firebase.db, "messages"),
@@ -136,6 +165,7 @@ export default function MessageDetail(slug: SlugProps) {
             receiverEmail: data.receiverEmail,
             replyFromMessageId: data.replyFromMessageId ?? [],
             sentDate: data.sentDate?.toDate(),
+              activeId : data.activeId,
           };
 
           allMessages.push(msg);
@@ -171,7 +201,7 @@ export default function MessageDetail(slug: SlugProps) {
     };
 
     if (slug.slug) getThread();
-  }, [slug.slug]);
+  }, [slug.slug, user.id]);
 
   return message?.map((m) => {
     const isOpen = openMap[m.id] ?? true;
@@ -216,6 +246,34 @@ export default function MessageDetail(slug: SlugProps) {
 
           {/* Reply Forward Button */}
           <div className="flex gap-3">
+              {!m.replyFromMessageId && <button
+                  type="button"
+                  className="flex items-center gap-1 border-2 border-[#03045E] py-1 px-3 rounded-lg hover:bg-gray-100"
+                  onClick={() => toggleStar(m.id, m.starred ?? false)
+                  }
+              >
+                  {m.starred ? "Unstar" : "Star"}
+              </button>}
+              {/* per-message history toggle */}
+              {m.history && m.history.length > 0 && (
+                  <button
+                      className="flex items-center gap-1 border-2 border-[#03045E] py-1 px-3 rounded-lg hover:bg-gray-100"
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          toggleHistoryFor(m.id);
+                      }}
+                  >
+                      {openHistory[m.id] ? "Hide History" : "Show History"}
+                  </button>
+              )}
+              {!m.replyFromMessageId && <button
+                  type="button"
+                  className="flex items-center gap-1 border-2 border-[#03045E] py-1 px-3 rounded-lg hover:bg-gray-100"
+                  onClick={() => deleteMessage(m.id)
+                  }
+              >
+                  Delete
+              </button>}
             <button
               type="button"
               className="flex items-center gap-1 border-2 border-[#03045E] py-1 px-3 rounded-lg hover:bg-gray-100"
@@ -239,19 +297,6 @@ export default function MessageDetail(slug: SlugProps) {
               <ReplyIcon className="h-5! w-5!" />
               Reply
             </button>
-
-            {/* per-message history toggle */}
-            {m.history && m.history.length > 0 && (
-              <button
-                className="text-blue-600 underline text-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleHistoryFor(m.id);
-                }}
-              >
-                {openHistory[m.id] ? "Hide History" : "Show History"}
-              </button>
-            )}
           </div>
         </div>
 

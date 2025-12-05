@@ -2,12 +2,14 @@
 
 import firebase from "../firebase/firebaseConfig";
 import {
-  addDoc,
-  collection,
-  Timestamp,
-  onSnapshot,
-  where,
-  query,
+    addDoc,
+    collection,
+    Timestamp,
+    onSnapshot,
+    where,
+    query,
+    updateDoc,
+    getDoc, doc,
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -93,6 +95,9 @@ export default function ComposeForm({
   };
 
   async function onSubmit(data: FormValues) {
+      if (typeof selectedReceiver === "string") {
+          //Check the id from the email
+      }
     const payload = {
       senderId: user.id,
       senderEmail: user.email,
@@ -110,6 +115,8 @@ export default function ComposeForm({
           : "",
       sentDate: Timestamp.fromDate(new Date()),
       starredId: ["0"],
+        readId: ["0"],
+        activeId: [user.id, typeof selectedReceiver !== "string" ? selectedReceiver?.id : null]
     };
     console.log("pay", payload);
 
@@ -122,6 +129,19 @@ export default function ComposeForm({
         setTimeout(() => {
           router.push("/mail/sent");
         }, 1000);
+      }
+      else {
+          if (payload.replyFromMessageId[0]) {
+              const parentMessage = payload.replyFromMessageId[0];
+              const mainRef = doc(firebase.db, "messages", parentMessage);
+              const mainSnap = await getDoc(mainRef);
+
+              if (!mainSnap.exists()) {
+                  throw new Error("Parent message doesn't exist")
+              }
+              await updateDoc(mainRef, { readId: [user?.id] });
+              location.reload();
+          }
       }
     } catch (err) {
       console.error(err);

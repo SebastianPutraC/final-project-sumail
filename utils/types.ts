@@ -23,6 +23,8 @@ export interface MessageProps {
   sentDate: Date;
   starred?: boolean | undefined;
   history?: MessageProps[];
+  readId? : boolean | undefined;
+  activeId: string[];
 }
 
 export interface MessageListProps {

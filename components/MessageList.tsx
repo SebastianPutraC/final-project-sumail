@@ -42,6 +42,7 @@ export function MessageList({ user, type }: MessageListProps) {
     return allMessages.filter(
       (m) =>
         m.senderName?.toLowerCase().includes(q) ||
+          m.title?.toLowerCase().includes(q) ||
         m.content?.toLowerCase().includes(q)
     );
   }, [allMessages, searchInput]);
@@ -80,15 +81,15 @@ export function MessageList({ user, type }: MessageListProps) {
           ? "senderId"
           : type === "starred"
           ? "starredId"
-          : "receiverId",
-        type === "starred" ? "array-contains" : "==",
-        user.id
+          : "receiverEmail",
+        type === "sent" ? "==" : "array-contains",
+        type === "inbox" ? user.email : user.id
       ),
-      where("replyFromMessageId", "==", "")
+      where("replyFromMessageId", "==", ""),
     );
 
     const unsub = onSnapshot(messagesQuery, (snapshot) => {
-      const messagesArray = snapshot.docs.map((d) => {
+      let messagesArray = snapshot.docs.map((d) => {
         const senderId = d.data().senderId;
         const sender = allUsers?.find((u) => u.id === senderId);
 
@@ -101,9 +102,11 @@ export function MessageList({ user, type }: MessageListProps) {
           content: d.data().content,
           sentDate: d.data().sentDate?.toDate() ?? new Date(),
           starred: d.data().starredId?.includes(user?.id),
+            readId : d.data().readId?.includes(user?.id),
+            activeId : d.data().activeId,
         };
       });
-
+        messagesArray = messagesArray.filter(message => message.activeId?.includes(user.id));
       setAllMessages(messagesArray);
     });
 
@@ -123,6 +126,14 @@ export function MessageList({ user, type }: MessageListProps) {
 
     return () => unsub();
   }, []);
+
+    const deleteMessage = async (messages: string[]) => {
+        for (let i = 0; i < messages.length; i++)
+        {
+            const ref = doc(firebase.db, "messages", messages[i]);
+            await updateDoc(ref, {activeId: arrayRemove(user.id)})
+        }
+    }
 
   return (
     <div>
@@ -144,7 +155,11 @@ export function MessageList({ user, type }: MessageListProps) {
             )}
           </div>
           <div className="cursor-pointer">
-            <DeleteOutlineIcon className={`w-5! h-5!`} />
+            <DeleteOutlineIcon className={`w-5! h-5!`} onClick={async () => {
+                await deleteMessage(checked)
+                setChecked([]);
+            }}/>
+
           </div>
         </div>
 
@@ -206,9 +221,9 @@ export function MessageList({ user, type }: MessageListProps) {
                 <tr
                   key={m.id}
                   onClick={() => router.push(`/mail/${m.id}`)}
-                  className={`border-b border-gray-100 last:border-none cursor-pointer hover:bg-gray-50 transition hover:shadow-sm ${
-                    checked.includes(m.id) && "bg-blue-50"
-                  }`}
+                  className={`border-b border-gray-100 last:border-none cursor-pointer hover:bg-gray-50 transition hover:shadow-sm 
+                  ${checked.includes(m.id) && "bg-blue-50"} ${m.readId && "bg-gray-200 hover:bg-gray-300"} `
+                }
                 >
                   <td className="p-3 flex items-center gap-4 w-10">
                     <input
