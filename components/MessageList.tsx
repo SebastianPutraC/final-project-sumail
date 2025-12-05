@@ -42,6 +42,7 @@ export function MessageList({ user, type }: MessageListProps) {
     return allMessages.filter(
       (m) =>
         m.senderName?.toLowerCase().includes(q) ||
+        m.title?.toLowerCase().includes(q) ||
         m.content?.toLowerCase().includes(q)
     );
   }, [allMessages, searchInput]);
