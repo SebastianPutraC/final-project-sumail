@@ -165,7 +165,7 @@ export default function ProfileDetail(slug : SlugProps)
         <>
             <div>
                 <div className="flex flex-col items-center">
-                    <img width='150px' height='150px' ref={profilePicRef} className="rounded-full border-2 border-[#00B4D8] mb-4" alt="Profile Picture"></img>
+                    <img ref={profilePicRef} className="w-38 h-38 rounded-full border-2 border-[#00B4D8] mb-4" alt="Profile Picture"></img>
                     <p className="font-bold text-xl">Welcome, {user && user.name}</p>
                 </div>
                 <div className="border-[#00B4D8] border-2 rounded-lg py-4 px-20 my-4 w-[60vw] text-lg">
