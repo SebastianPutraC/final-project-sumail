@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Register from "../components/Register";
@@ -100,7 +99,7 @@ describe("Register Page", () => {
     await user.click(roleUser);
 
     const submitBtn = screen.getByRole("button", { name: /register/i });
-    await waitFor(() => expect(submitBtn).not.toBeDisabled()); // Ensure valid
+    await waitFor(() => expect(submitBtn).not.toBeDisabled());
     await user.click(submitBtn);
 
     await waitFor(() => {

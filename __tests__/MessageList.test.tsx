@@ -1,26 +1,19 @@
-import React from "react";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { MessageList } from "../components/MessageList"; // Verify this path matches your file structure
+import { MessageList } from "../components/MessageList";
 import { useRouter } from "next/navigation";
 import * as firestore from "firebase/firestore";
 
-// --- MOCKS ---
-
-// 1. Mock Next.js Router
 jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
 }));
 
-// 2. Mock Firebase Config
-// We define a specific DB object to check equality against
 const mockDb = { type: "firestore-db" };
 jest.mock("../firebase/firebaseConfig", () => ({
   __esModule: true,
   default: { db: { type: "firestore-db" } },
 }));
 
-// 3. Mock MUI Icons (CRITICAL FIX: Pass {...props} to enable onClick)
 jest.mock("@mui/icons-material/StarBorderOutlined", () => (props: any) => <div data-testid="StarBorderOutlinedIcon" {...props} />);
 jest.mock("@mui/icons-material/Star", () => (props: any) => <div data-testid="StarIcon" {...props} />);
 jest.mock("@mui/icons-material/KeyboardArrowLeft", () => (props: any) => <div data-testid="KeyboardArrowLeftIcon" {...props} />);
@@ -29,14 +22,12 @@ jest.mock("@mui/icons-material/CheckBoxOutlineBlank", () => (props: any) => <div
 jest.mock("@mui/icons-material/DeleteOutline", () => (props: any) => <div data-testid="DeleteOutlineIcon" {...props} />);
 jest.mock("@mui/icons-material/Search", () => (props: any) => <div data-testid="SearchIcon" {...props} />);
 
-// 4. Mock Firestore
 jest.mock("firebase/firestore", () => {
   return {
     getFirestore: jest.fn(),
     collection: jest.fn((db, path) => ({ type: "collection", path })), 
     query: jest.fn(() => ({ type: "query" })),
     where: jest.fn(),
-    // doc returns a reference object we can track
     doc: jest.fn((db, coll, id) => ({ refPath: `${coll}/${id}` })), 
     updateDoc: jest.fn(),
     arrayUnion: jest.fn((id) => ({ type: "union", id })),
@@ -66,7 +57,7 @@ describe("MessageList Component", () => {
       title: "Old Message",
       content: "Meeting yesterday",
       sentDate: mockDate("2023-10-01T10:00:00"),
-      starredId: [], // Not starred
+      starredId: [],
       readId: [],
       activeId: ["user-123"],
       replyFromMessageId: "",
@@ -92,7 +83,6 @@ describe("MessageList Component", () => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
 
-    // Mock onSnapshot logic
     (firestore.onSnapshot as jest.Mock).mockImplementation((ref, callback) => {
       if (ref.path === "users") {
         callback({ docs: mockUsersData });
@@ -172,11 +162,8 @@ describe("MessageList Component", () => {
     await waitFor(() => screen.getByText("Old Message"));
 
     const row = screen.getByText("Old Message").closest("tr");
-    // This finds the mocked div which NOW has the onClick handler because of {...props}
     const starBtn = within(row!).getByTestId("StarBorderOutlinedIcon");
-    
-    // Stop Propagation is called in component, fireEvent handles this natively mostly,
-    // but we need to ensure we are clicking the element that has the handler.
+
     fireEvent.click(starBtn);
 
     expect(firestore.doc).toHaveBeenCalledWith(

@@ -1,7 +1,6 @@
-import React from "react";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import MessageDetail from "../components/MessageDetail"; // Adjust path
+import MessageDetail from "../components/MessageDetail";
 import { useRouter } from "next/navigation";
 import * as firestore from "firebase/firestore";
 import * as CurrentUser from "@/utils/CurrentUser";
@@ -84,7 +83,6 @@ describe("MessageDetail Component", () => {
   const mockMainSender = { email: "main-sender@example.com" };
   const mockReplySender = { email: "replier@example.com" };
 
-  // --- LOCATION MOCK FIX ---
   beforeAll(() => {
     // @ts-ignore
     delete window.location;
