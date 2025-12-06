@@ -13,10 +13,16 @@ interface UserProps {
     name: string;
     joinedDate : string;
     profilePicture: string;
+    role : string;
 }
 
 interface SlugProps{
     slug : string
+}
+
+interface ErrorProps{
+    upload : string,
+    name : string,
 }
 
 export default function ProfileDetail(slug : SlugProps)
@@ -26,6 +32,7 @@ export default function ProfileDetail(slug : SlugProps)
 
     const profilePicRef = useRef<HTMLImageElement>(null);
     const [profilePic, setProfilePic] = useState<File | null>(null)
+    const [error, setErrors] = useState<ErrorProps>({upload : "", name : ""});
 
     const [newName, setNewName] = useState("");
 
@@ -50,28 +57,31 @@ export default function ProfileDetail(slug : SlugProps)
     }
 
     const handleUpload = async () => {
-        if (!profilePic) return;
-
-        const storageRef = ref(firebase.storage, `profile-pictures/${user?.id}`);
-
         try {
+            if (!profilePic) {
+                setErrors({upload: "No file uploaded", name : ""})
+                return;
+            }
+            const storageRef = ref(firebase.storage, `profile-pictures/${user?.id}`);
             const imageExtension = getFileExtension(profilePic.name);
             const supportedExtensions: string[] = ["jpg", "png", 'jpeg', 'jfif', 'pjpeg', 'pjp', 'svg', 'webp'];
             if (!supportedExtensions.includes(imageExtension)) {
-                throw new Error("File type not supported")
+                setErrors({upload: "File type not supported", name : ""})
+                return;
             }
 
             await uploadBytes(storageRef, profilePic);
             const pictureUrl = await getDownloadURL(storageRef);
 
             if (!user || !pictureUrl) {
+                setErrors({upload : "Can't find user profile picture", name : ""})
                throw new Error("No user or picture provided");
             }
 
             await updateDoc(doc(firebase.db, "users", user.id), {
                 profilePicture : user.id
             });
-            router.refresh();
+            location.reload();
 
         } catch (error) {
             console.error('Error uploading picture', error);
@@ -85,10 +95,19 @@ export default function ProfileDetail(slug : SlugProps)
     const handleNameChange = async () => {
         try {
             if (user) {
-                await updateDoc(doc(firebase.db, "users", user.id), {
-                    name : newName
-                });
-                router.refresh();
+                if (newName.length > 0) {
+                    await updateDoc(doc(firebase.db, "users", user.id), {
+                        name : newName
+                    });
+
+                    location.reload();
+                }
+                else{
+                    setErrors({upload: "", name : "Name cannot be empty"})
+                }
+            }
+            else {
+                throw new Error("User not found")
             }
         }
         catch (error) {
@@ -104,6 +123,7 @@ export default function ProfileDetail(slug : SlugProps)
     useEffect( () => {
         const getDetail = async () =>
         {
+            setErrors({name : "", upload : ""})
             const reference = doc(firebase.db, "users", slug.slug)
             const snapshot = await getDoc(reference)
             if (snapshot.exists())
@@ -115,6 +135,7 @@ export default function ProfileDetail(slug : SlugProps)
                         email: snapshot.data().email,
                         joinedDate: snapshot.data()?.createdAt ? snapshot.data().createdAt.toDate().toLocaleDateString() : "Unknown",
                         profilePicture: snapshot.data().profilePicture,
+                        role : snapshot.data().role,
                     }
 
                 setUser(data);
@@ -173,31 +194,49 @@ export default function ProfileDetail(slug : SlugProps)
                             {user && user.joinedDate}
                         </div>
                     </div>
+                    <div className="flex flex-row my-2">
+                        <div className="flex-1">
+                            Role
+                        </div>
+                        <div className="flex-1">
+                            {user && user.role}
+                        </div>
+                    </div>
                 </div>
             </div>
             <div className="border-[#00B4D8] border-2 rounded-lg py-4 px-20 my-4 w-[60vw] text-lg">
                 <div className="flex flex-row my-2 items-center">
                     <div className="flex-1">
-                        <input type="file" onChange={handleFileChange} />
+                        <input type="file" onChange={handleFileChange} id="file-input"
+                               className=" file:border-2 border-1 rounded-md file:border-[black]  text-[grey] file:hover:bg-[#00B4D8] file:hover:text-white transition-all duration-200 file:cursor-pointer w-65 p-1 file:p-1"/>
                     </div>
                     <div className="flex-1">
-                        <button className="border-2 border-[#00B4D8] text-[#00B4D8] hover:bg-[#00B4D8] hover:text-white font-semibold rounded-lg p-3 w-full max-w-xs transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer" onClick={handleUpload}>
+                        <button
+                            className="border-2 border-[#00B4D8] text-[#00B4D8] hover:bg-[#00B4D8] hover:text-white font-semibold rounded-lg p-3 w-full max-w-xs transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer" onClick={handleUpload}>
                             Upload Profile Picture
                         </button>
                     </div>
                 </div>
-                
+                {error.upload.length > 0 && <div className="flex gap-1">
+                    <p className="text-red-500 text-sm mt-1">
+                        {error.upload}
+                    </p>
+                </div>}
                 
                 <hr></hr>
                 <div className="flex flex-row my-2 items-center">
                     <div className="flex-1">
-                        <input style={{ outlineStyle: 'solid'}} type="text" name="newName" onChange={handleNameInputChange} placeholder="New Name"/>
+                        <input className='p-2 w-65 rounded-md border-1' type="text" name="newName" onChange={handleNameInputChange} placeholder=" New Name"/>
                     </div>
                     <div className="flex-1">
                         <button className="border-2 border-[#00B4D8] text-[#00B4D8] hover:bg-[#00B4D8] hover:text-white font-semibold rounded-lg p-3 w-full max-w-xs transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer" onClick={handleNameChange}>Change Name</button>
                     </div>       
                 </div>
-                
+                {error.name.length > 0 && <div className="flex gap-1">
+                    <p className="text-red-500 text-sm mt-1">
+                        {error.name}
+                    </p>
+                </div>}
 
                 
             </div>

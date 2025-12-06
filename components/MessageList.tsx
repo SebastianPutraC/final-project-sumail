@@ -42,6 +42,7 @@ export function MessageList({ user, type }: MessageListProps) {
     return allMessages.filter(
       (m) =>
         m.senderName?.toLowerCase().includes(q) ||
+          m.title?.toLowerCase().includes(q) ||
         m.content?.toLowerCase().includes(q)
     );
   }, [allMessages, searchInput]);
@@ -71,6 +72,7 @@ export function MessageList({ user, type }: MessageListProps) {
     }
   };
 
+  // Get Messages
   useEffect(() => {
     const messagesQuery = query(
       collection(firebase.db, "messages"),
@@ -80,13 +82,14 @@ export function MessageList({ user, type }: MessageListProps) {
           : type === "starred"
           ? "starredId"
           : "receiverId",
-        type === "starred" ? "array-contains" : "==",
+        type === "sent" ? "==" : "array-contains",
         user.id
-      )
+      ),
+      where("replyFromMessageId", "==", ""),
     );
 
     const unsub = onSnapshot(messagesQuery, (snapshot) => {
-      const messagesArray = snapshot.docs.map((d) => {
+      let messagesArray = snapshot.docs.map((d) => {
         const senderId = d.data().senderId;
         const sender = allUsers?.find((u) => u.id === senderId);
 
@@ -99,15 +102,18 @@ export function MessageList({ user, type }: MessageListProps) {
           content: d.data().content,
           sentDate: d.data().sentDate?.toDate() ?? new Date(),
           starred: d.data().starredId?.includes(user?.id),
+            readId : d.data().readId?.includes(user?.id),
+            activeId : d.data().activeId,
         };
       });
-
+        messagesArray = messagesArray.filter(message => message.activeId?.includes(user.id));
       setAllMessages(messagesArray);
     });
 
     return () => unsub();
   }, [user?.id, allUsers, limit, type]);
 
+  // Get users
   useEffect(() => {
     const unsub = onSnapshot(collection(firebase.db, "users"), (snapshot) => {
       const users = snapshot.docs.map((u) => ({
@@ -120,6 +126,14 @@ export function MessageList({ user, type }: MessageListProps) {
 
     return () => unsub();
   }, []);
+
+    const deleteMessage = async (messages: string[]) => {
+        for (let i = 0; i < messages.length; i++)
+        {
+            const ref = doc(firebase.db, "messages", messages[i]);
+            await updateDoc(ref, {activeId: arrayRemove(user.id)})
+        }
+    }
 
   return (
     <div>
@@ -141,7 +155,11 @@ export function MessageList({ user, type }: MessageListProps) {
             )}
           </div>
           <div className="cursor-pointer">
-            <DeleteOutlineIcon className={`w-5! h-5!`} />
+            <DeleteOutlineIcon className={`w-5! h-5!`} onClick={async () => {
+                await deleteMessage(checked)
+                setChecked([]);
+            }}/>
+
           </div>
         </div>
 
@@ -158,7 +176,7 @@ export function MessageList({ user, type }: MessageListProps) {
 
         {/* Data Limit */}
         <div className="text-white flex gap-2 items-center">
-          <span>Limit</span>
+          <span>Items per page</span>
           <select
             onChange={(e) => setLimit(Number(e.target.value))}
             className="text-md"
@@ -198,13 +216,14 @@ export function MessageList({ user, type }: MessageListProps) {
         <table className="min-w-full text-sm text-gray-700">
           <tbody>
             {paginated.map((m) => {
+              console.log("m", m);
               return (
                 <tr
                   key={m.id}
-                  onClick={() => router.push(`/user/message/${m.id}`)}
-                  className={`border-b border-gray-100 last:border-none cursor-pointer hover:bg-gray-50 transition hover:shadow-sm ${
-                    checked.includes(m.id) && "bg-blue-50"
-                  }`}
+                  onClick={() => router.push(`/mail/${m.id}`)}
+                  className={`border-b border-gray-100 last:border-none cursor-pointer hover:bg-gray-50 transition hover:shadow-sm 
+                  ${checked.includes(m.id) && "bg-blue-50"} ${m.readId && "bg-gray-200 hover:bg-gray-300"} `
+                }
                 >
                   <td className="p-3 flex items-center gap-4 w-10">
                     <input
@@ -222,12 +241,12 @@ export function MessageList({ user, type }: MessageListProps) {
                       {m.starred ? (
                         <StarIcon
                           className="w-5! h-5! text-[#03045E]"
-                          onClick={() => toggleStar(m.id, m.starred)}
+                          onClick={() => toggleStar(m.id, m.starred ?? false)}
                         />
                       ) : (
                         <StarBorderOutlinedIcon
                           className="w-5! h-5!"
-                          onClick={() => toggleStar(m.id, m.starred)}
+                          onClick={() => toggleStar(m.id, m.starred ?? false)}
                         />
                       )}
                     </div>
