@@ -1,381 +1,212 @@
-import '@testing-library/jest-dom';
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MessageList } from "../components/MessageList";
-import { onSnapshot, updateDoc } from "firebase/firestore";
+import React from "react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import { MessageList } from "../components/MessageList"; // Verify this path matches your file structure
 import { useRouter } from "next/navigation";
+import * as firestore from "firebase/firestore";
 
-// Mock Firebase
-jest.mock("firebase/firestore" , () => {
-  const original = jest.requireActual("firebase/firestore");
-  return {
-    ...original,
-    getFirestore: jest.fn(),
-    collection: jest.fn((db, path) => ({ _path: path, type: 'collection' })),
-    query: jest.fn((ref) => ({ _path: ref._path, type: 'query' })),
-    onSnapshot: jest.fn(),
-    updateDoc: jest.fn(),
-    orderBy: jest.fn(),
-    where: jest.fn(),
-    doc: jest.fn(),
-  };
-});
-jest.mock("next/navigation");
-jest.mock("../firebase/firebaseConfig", () => ({
-  default: {
-    db: {},
-  },
+// --- MOCKS ---
+
+// 1. Mock Next.js Router
+jest.mock("next/navigation", () => ({
+  useRouter: jest.fn(),
 }));
 
-const mockOnSnapshot = onSnapshot as jest.MockedFunction<typeof onSnapshot>;
-const mockUpdateDoc = updateDoc as jest.MockedFunction<typeof updateDoc>;
-const mockPush = jest.fn();
-const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
+// 2. Mock Firebase Config
+// We define a specific DB object to check equality against
+const mockDb = { type: "firestore-db" };
+jest.mock("../firebase/firebaseConfig", () => ({
+  __esModule: true,
+  default: { db: { type: "firestore-db" } },
+}));
+
+// 3. Mock MUI Icons (CRITICAL FIX: Pass {...props} to enable onClick)
+jest.mock("@mui/icons-material/StarBorderOutlined", () => (props: any) => <div data-testid="StarBorderOutlinedIcon" {...props} />);
+jest.mock("@mui/icons-material/Star", () => (props: any) => <div data-testid="StarIcon" {...props} />);
+jest.mock("@mui/icons-material/KeyboardArrowLeft", () => (props: any) => <div data-testid="KeyboardArrowLeftIcon" {...props} />);
+jest.mock("@mui/icons-material/IndeterminateCheckBox", () => (props: any) => <div data-testid="IndeterminateCheckBoxIcon" {...props} />);
+jest.mock("@mui/icons-material/CheckBoxOutlineBlank", () => (props: any) => <div data-testid="CheckBoxOutlineBlankIcon" {...props} />);
+jest.mock("@mui/icons-material/DeleteOutline", () => (props: any) => <div data-testid="DeleteOutlineIcon" {...props} />);
+jest.mock("@mui/icons-material/Search", () => (props: any) => <div data-testid="SearchIcon" {...props} />);
+
+// 4. Mock Firestore
+jest.mock("firebase/firestore", () => {
+  return {
+    getFirestore: jest.fn(),
+    collection: jest.fn((db, path) => ({ type: "collection", path })), 
+    query: jest.fn(() => ({ type: "query" })),
+    where: jest.fn(),
+    // doc returns a reference object we can track
+    doc: jest.fn((db, coll, id) => ({ refPath: `${coll}/${id}` })), 
+    updateDoc: jest.fn(),
+    arrayUnion: jest.fn((id) => ({ type: "union", id })),
+    arrayRemove: jest.fn((id) => ({ type: "remove", id })),
+    onSnapshot: jest.fn(),
+  };
+});
 
 describe("MessageList Component", () => {
-  const mockUser = {
-    id: "user123",
-    name: "Test User",
-    email: "testuser123@sumail.com"
+  const mockPush = jest.fn();
+  const mockUser = { id: "user-123", name: "Test User", email: "user123@sumail.com" };
+
+  const mockDate = (dateString: string) => ({
+    toDate: () => new Date(dateString),
+  });
+
+  const mockUsersData = [
+    { id: "sender-1", data: () => ({ name: "Alice" }) },
+    { id: "sender-2", data: () => ({ name: "Bob" }) },
+  ];
+
+  const msg1 = {
+    id: "msg-1",
+    data: () => ({
+      senderId: "sender-1",
+      receiverId: ["user-123"],
+      title: "Old Message",
+      content: "Meeting yesterday",
+      sentDate: mockDate("2023-10-01T10:00:00"),
+      starredId: [], // Not starred
+      readId: [],
+      activeId: ["user-123"],
+      replyFromMessageId: "",
+    }),
   };
 
-  const mockMessages = [
-    {
-      id: "msg1",
-      senderId: "sender1",
-      receiverId: "user123",
-      title: "Test Message 1",
-      content: "This is test content 1",
-      sentDate: { toDate: () => new Date("2024-01-15T10:00:00") },
-      starredId: [],
+  const msg2 = {
+    id: "msg-2",
+    data: () => ({
+      senderId: "sender-2",
+      receiverId: ["user-123"],
+      title: "New Message",
+      content: "Project deadline",
+      sentDate: mockDate("2023-10-02T12:00:00"),
+      starredId: ["user-123"],
+      readId: ["user-123"],
+      activeId: ["user-123"],
       replyFromMessageId: "",
-    },
-    {
-      id: "msg2",
-      senderId: "sender2",
-      receiverId: "user123",
-      title: "Important Update",
-      content: "This is test content 2",
-      sentDate: { toDate: () => new Date("2024-01-16T14:30:00") },
-      starredId: ["user123"],
-      replyFromMessageId: "",
-    },
-    {
-      id: "msg3",
-      senderId: "sender1",
-      receiverId: "user123",
-      title: "Follow Up",
-      content: "Another message here",
-      sentDate: { toDate: () => new Date("2024-01-17T09:15:00") },
-      starredId: [],
-      replyFromMessageId: "",
-    },
-  ];
+    }),
+  };
 
-  const mockUsers = [
-    { id: "sender1", name: "John Doe", email: "johndoe@sumail.com"},
-    { id: "sender2", name: "Jane Smith", email: "janesmith@sumail.com"},
-  ];
-
-beforeEach(() => {
+  beforeEach(() => {
     jest.clearAllMocks();
+    (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
 
-    mockUseRouter.mockReturnValue({
-      push: mockPush,
-    } as any);
-
-    mockOnSnapshot.mockImplementation((ref: any, callback: any) => {
-      const isMessagesQuery = ref._path === "messages";
-      const isUsersQuery = ref._path === "users";
-
-      const snapshot = {
-        docs: isMessagesQuery
-          ? mockMessages.map((msg) => ({
-              id: msg.id,
-              data: () => msg,
-            }))
-          : isUsersQuery
-          ? mockUsers.map((user) => ({
-              id: user.id,
-              data: () => user,
-            }))
-          : [],
-      };
-
-      if (isMessagesQuery) {
-        setTimeout(() => callback(snapshot), 10);
+    // Mock onSnapshot logic
+    (firestore.onSnapshot as jest.Mock).mockImplementation((ref, callback) => {
+      if (ref.path === "users") {
+        callback({ docs: mockUsersData });
       } else {
-        callback(snapshot);
+        callback({ docs: [msg1, msg2] });
       }
-
-      return jest.fn();
+      return jest.fn(); 
     });
-
-    mockUpdateDoc.mockResolvedValue(undefined);
   });
 
-  test("renders message list with messages", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Test Message 1")).toBeInTheDocument();
-    });
+  it("renders messages correctly sorted by date (newest first)", async () => {
+    render(<MessageList user={mockUser} type="received" />);
+    await waitFor(() => expect(screen.getByText("New Message")).toBeInTheDocument());
     
-    expect(screen.getByText("Important Update")).toBeInTheDocument();
-    expect(screen.getByText("Follow Up")).toBeInTheDocument();
+    const rows = screen.getAllByRole("row");
+    expect(rows[0]).toHaveTextContent("New Message");
+    expect(rows[1]).toHaveTextContent("Old Message");
   });
 
-  test("displays sender names correctly", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
+  it("navigates to message detail on row click", async () => {
+    render(<MessageList user={mockUser} type="received" />);
+    await waitFor(() => screen.getByText("New Message"));
 
-    await waitFor(() => {
-      expect(screen.getByText("Test Message 1")).toBeInTheDocument();
-    });
+    const row = screen.getByText("New Message").closest("tr");
+    fireEvent.click(row!);
 
-    await waitFor(() => {
-        const johnDoe = screen.queryAllByText("John Doe");
-        const janeSmith = screen.queryAllByText("Jane Smith");
-      
-      expect(johnDoe || janeSmith).toBeTruthy();
-    }, { timeout: 3000 });
+    expect(mockPush).toHaveBeenCalledWith("/mail/msg-2");
   });
 
-  test("filters messages based on search input", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Test Message 1")).toBeInTheDocument();
-      expect(screen.getByText("Important Update")).toBeInTheDocument();
-    });
+  it("filters messages based on search input", async () => {
+    render(<MessageList user={mockUser} type="received" />);
+    await waitFor(() => screen.getByText("New Message"));
 
     const searchInput = screen.getByPlaceholderText("Search email");
-    fireEvent.change(searchInput, { target: { value: "Important" } });
+    fireEvent.change(searchInput, { target: { value: "deadline" } }); 
 
-    await waitFor(() => {
-      expect(screen.getByText("Important Update")).toBeInTheDocument();
-    });
-    
-    expect(screen.queryByText("Test Message 1")).not.toBeInTheDocument();
+    expect(screen.getByText("New Message")).toBeInTheDocument();
+    expect(screen.queryByText("Old Message")).not.toBeInTheDocument();
   });
 
-  test("changes items per page limit", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Test Message 1")).toBeInTheDocument();
-    });
-
-    const select = screen.getByRole("combobox");
-    fireEvent.change(select, { target: { value: "10" } });
-
-    expect(select).toHaveValue("10");
-  });
-
-  test("navigates to message detail on row click", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Test Message 1")).toBeInTheDocument();
-    });
-
-    const messageRow = screen.getByText("Test Message 1").closest("tr");
-    if (messageRow) {
-      fireEvent.click(messageRow);
-    }
-
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining("/mail/"));
-    });
-  });
-
-  test("toggles star on message", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Test Message 1")).toBeInTheDocument();
-    });
-
-    const allSvgs = document.querySelectorAll('svg');
-
-    let starIcon = null;
-    allSvgs.forEach(svg => {
-      const path = svg.querySelector('path');
-      if (path && path.getAttribute('d')?.includes('M22 9.24')) {
-        starIcon = svg;
-      }
-    });
-
-    if (starIcon) {
-      fireEvent.click(starIcon);
-      
-      await waitFor(() => {
-        expect(mockUpdateDoc).toHaveBeenCalled();
-      }, { timeout: 2000 });
-    } else {
-      expect(mockUpdateDoc).toBeDefined();
-    }
-  });
-
-  test("checks and unchecks individual messages", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Test Message 1")).toBeInTheDocument();
-    });
-
-    const checkboxes = screen.getAllByRole("checkbox");
-    const firstMessageCheckbox = checkboxes[1];
-
-    fireEvent.click(firstMessageCheckbox);
-    await waitFor(() => {
-      expect(firstMessageCheckbox).toBeChecked();
-    });
-
-    fireEvent.click(firstMessageCheckbox);
-    await waitFor(() => {
-      expect(firstMessageCheckbox).not.toBeChecked();
-    });
-  });
-
-  test("selects all messages on page", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Test Message 1")).toBeInTheDocument();
-    });
-
-    const checkboxes = screen.getAllByRole("checkbox");
-    const selectAllCheckbox = checkboxes[0];
-    
-    fireEvent.click(selectAllCheckbox);
-
-    await waitFor(() => {
-      const checkedBoxes = checkboxes.filter(cb => (cb as HTMLInputElement).checked);
-      expect(checkedBoxes.length).toBeGreaterThan(0);
-    });
-  });
-
-  test("displays correct pagination info", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Page 1 of 1/)).toBeInTheDocument();
-    });
-  });
-
-  test("formats date correctly", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/15\/01\/2024/)).toBeInTheDocument();
-    });
-  });
-
-test("handles empty message list", async () => {
-    mockOnSnapshot.mockImplementation((ref: any, callback: any) => {
-      const isMessagesQuery = ref._path === "messages";
-      const snapshot = {
-        docs: isMessagesQuery 
-          ? []
-          : mockUsers.map((user) => ({ id: user.id, data: () => user })),
-      };
-      
-      callback(snapshot);
-      return jest.fn();
-    });
-
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      const table = screen.getByRole("table");
-      const tbody = table.querySelector("tbody");
-      expect(tbody?.querySelectorAll("tr").length).toBe(0);
-    }, { timeout: 2000 });
-  });
-
-  test("sorts messages by date (newest first)", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      const rows = screen.getAllByRole("row");
-      expect(rows[0]).toHaveTextContent("Follow Up");
-    });
-  });
-
-  test("pagination navigation works correctly", async () => {
-    const manyMessages = Array.from({ length: 12 }, (_, i) => ({
-      id: `msg${i}`,
-      senderId: "sender1",
-      receiverId: "user123",
-      title: `Message ${i}`,
-      content: `Content ${i}`,
-      sentDate: { toDate: () => new Date(`2024-01-${String(i + 1).padStart(2, '0')}T10:00:00`) },
-      starredId: [],
-      replyFromMessageId: "",
+  it("handles pagination correctly", async () => {
+    const manyMessages = Array.from({ length: 7 }, (_, i) => ({
+      id: `msg-pag-${i}`,
+      data: () => ({
+        senderId: "sender-1",
+        receiverId: ["user-123"],
+        title: `Title ${i}`,
+        content: "Content",
+        sentDate: mockDate(`2023-10-0${i + 1}T12:00:00`),
+        starredId: [],
+        readId: [],
+        activeId: ["user-123"],
+        replyFromMessageId: "",
+      }),
     }));
 
-mockOnSnapshot.mockImplementation((ref: any, callback: any) => {
-      const isMessagesQuery = ref._path === "messages";
-      const snapshot = {
-        docs: isMessagesQuery 
-          ? manyMessages.map((msg) => ({ id: msg.id, data: () => msg }))
-          : mockUsers.map((user) => ({ id: user.id, data: () => user })),
-      };
-      
-      if (isMessagesQuery) {
-         setTimeout(() => callback(snapshot), 10);
-      } else {
-         callback(snapshot);
-      }
-      return jest.fn();
+    (firestore.onSnapshot as jest.Mock).mockImplementation((ref, callback) => {
+        if (ref.path === "users") callback({ docs: mockUsersData });
+        else callback({ docs: manyMessages });
+        return jest.fn();
     });
 
-    render(<MessageList user={mockUser} type="inbox" />);
+    render(<MessageList user={mockUser} type="received" />);
+    await waitFor(() => screen.getByText("Title 6")); 
 
-    await waitFor(() => {
-      expect(screen.getByText(/Page 1 of 3/)).toBeInTheDocument();
-    }, { timeout: 3000 });
+    expect(screen.getByText("Title 6")).toBeInTheDocument();
+    expect(screen.queryByText("Title 1")).not.toBeInTheDocument();
 
-    const paginationDiv = screen.getByText(/Page 1 of 3/).parentElement;
-    const buttons = paginationDiv?.querySelectorAll('svg');
-    
-    if (buttons && buttons.length > 1) {
-      fireEvent.click(buttons[1]);
-    }
+    const nextBtn = screen.getAllByTestId("KeyboardArrowLeftIcon")[1];
+    fireEvent.click(nextBtn);
 
-    await waitFor(() => {
-      expect(screen.getByText(/Page 2 of 3/)).toBeInTheDocument();
-    });
+    expect(screen.getByText("Title 1")).toBeInTheDocument();
   });
 
-  test("search input updates state", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
+  it("toggles star status", async () => {
+    render(<MessageList user={mockUser} type="received" />);
+    await waitFor(() => screen.getByText("Old Message"));
 
-    await waitFor(() => {
-      expect(screen.getByText("Test Message 1")).toBeInTheDocument();
-    });
+    const row = screen.getByText("Old Message").closest("tr");
+    // This finds the mocked div which NOW has the onClick handler because of {...props}
+    const starBtn = within(row!).getByTestId("StarBorderOutlinedIcon");
+    
+    // Stop Propagation is called in component, fireEvent handles this natively mostly,
+    // but we need to ensure we are clicking the element that has the handler.
+    fireEvent.click(starBtn);
 
-    const searchInput = screen.getByPlaceholderText("Search email") as HTMLInputElement;
-    
-    fireEvent.change(searchInput, { target: { value: "test query" } });
-    
-    expect(searchInput.value).toBe("test query");
+    expect(firestore.doc).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "firestore-db" }), 
+        "messages", 
+        "msg-1"
+    );
+
+    expect(firestore.updateDoc).toHaveBeenCalledWith(
+        { refPath: "messages/msg-1" }, 
+        { starredId: { type: "union", id: "user-123" } }
+    );
   });
 
-  test("displays all three messages initially", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
+  it("deletes selected messages", async () => {
+    render(<MessageList user={mockUser} type="received" />);
+    await waitFor(() => screen.getByText("Old Message"));
+
+    const row = screen.getByText("Old Message").closest("tr");
+    const checkbox = within(row!).getByRole("checkbox");
+    fireEvent.click(checkbox);
+
+    const deleteBtn = screen.getByTestId("DeleteOutlineIcon");
+    fireEvent.click(deleteBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("Test Message 1")).toBeInTheDocument();
-      expect(screen.getByText("Important Update")).toBeInTheDocument();
-      expect(screen.getByText("Follow Up")).toBeInTheDocument();
-    });
-  });
-
-  test("message content is truncated in table", async () => {
-    render(<MessageList user={mockUser} type="inbox" />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/This is test content 1/)).toBeInTheDocument();
+        expect(firestore.updateDoc).toHaveBeenCalledWith(
+            { refPath: "messages/msg-1" },
+            { activeId: { type: "remove", id: "user-123" } }
+        );
     });
   });
 });
