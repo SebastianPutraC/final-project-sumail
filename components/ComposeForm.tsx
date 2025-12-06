@@ -349,6 +349,9 @@ ${h.content}
                   }}
                   onKeyDown={async (e) => {
                     if (e.key === "Enter") {
+                        if (searchInput.length <= 0)
+                            return;
+
                         inputId = inputId + 1
                         const emailQuery = query(
                             collection(firebase.db, "users"),
