@@ -7,128 +7,104 @@ import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
 import StarBorderOutlinedIcon from "@mui/icons-material/StarBorderOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import { usePathname } from "next/navigation";
-import {useState} from "react";
+import { SidebarLinkProps } from "@/utils/types";
+import { useEffect, useRef, useState } from "react";
 import ComposeForm from "@/components/ComposeForm";
+import { UseFormStateProps } from "react-hook-form";
 
 export default function Sidebar() {
-    const pathname = usePathname();
-    const inbox = pathname.includes("inbox");
-    const compose = pathname.includes("compose");
-    const sent = pathname.includes("sent");
-    const starred = pathname.includes("starred")
     const [composeModalVisible, setComposeModalVisible] = useState(false);
-    const showComposeModal = () => {
-        setComposeModalVisible(true);
-    };
-    const hideComposeModal = () => {
-        setComposeModalVisible(false);
-    };
 
+    const pathname = usePathname();
+    const compose = pathname.includes("compose");
+    const inbox = pathname.includes("inbox");
+    const starred = pathname.includes("starred");
+    const sent = pathname.includes("sent");
+    const modalRef = useRef<HTMLDivElement | null>(null);
     const [isOpen, setIsOpen] = useState(false)
 
-    const baseItem = "flex items-center gap-3 rounded-lg group cursor-pointer transition-all"
-    const iconClass = "w-7! h-7!"
+    const sidebarArr = [
+        { checkPath: compose, Icon: CreateOutlinedIcon, path: "compose" },
+        { checkPath: inbox, Icon: InboxOutlinedIcon, path: "inbox" },
+        { checkPath: starred, Icon: StarBorderOutlinedIcon, path: "starred" },
+        { checkPath: sent, Icon: SendOutlinedIcon, path: "sent" },
+    ];
 
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            const target = e.target as Node;
+
+            if (modalRef.current && !modalRef.current.contains(target)) {
+                setComposeModalVisible(false);
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     return (
         <div>
-            {composeModalVisible &&
-                <ComposeForm hideModal={hideComposeModal} />}
-            {/* <aside className="p-8 flex flex-col items-center gap-10"> */}
-            <aside className={`sticky top-0 p-6 flex flex-col gap-8 h-full bg-[#F7FDFE] shadow-md transition-all duration-300
-          ${isOpen ? "w-48" : "w-20"} z-50`}>
+            <aside className={`p-8 mr-6 bg-[#F7FDFE] shadow-md flex flex-col justify-start gap-10 transition-all duration-300 ${isOpen ? "w-50" : "w-25"} z-50 h-screen`}>
                 {/* Burger */}
-                <button onClick={() => setIsOpen(!isOpen)}
-                        className="flex justify-center"
-                >
-                    <MenuIcon className="w-9! h-9!" />
-                    {/* <MenuIcon className="w-9! h-9! -ml-1" /> */}
-                </button>
+                <MenuIcon className="w-9! h-9! ml-1 cursor-pointer" onClick={() => setIsOpen(!isOpen)} />
                 {/* Content */}
                 <nav className="flex flex-col gap-5 text-center">
-                    <button
-                        //href="/mail/compose"
-                        onClick={showComposeModal}
-                        className={`${baseItem} p-2 hover:bg-[#03045E] ${
-                            composeModalVisible ? "bg-[#03045E] hover:bg-[#0077B6]!" : ""
-                        } ${!isOpen && composeModalVisible ? "p-3" : ""}`}
-                    >
-                        <CreateOutlinedIcon
-                            className={`${iconClass} text-[#03045E] group-hover:text-white ${
-                                composeModalVisible ? "text-white" : ""
-                            }`}
+                    {sidebarArr.map((item, i) => (
+                        <SidebarLink
+                            key={i}
+                            checkPath={item.checkPath}
+                            Icon={item.Icon}
+                            path={item.path}
+                            setModal={setComposeModalVisible}
+                            isOpen={isOpen}
                         />
-                        {isOpen && (
-                            <span
-                                className={`${composeModalVisible ? "text-white" : "text-[#03045E] group-hover:text-white"}`}
-                            >
-                        Write
-                        </span>
-                        )}
-                    </button>
-
-                    <Link
-                        href="/mail/inbox"
-                        //   className={`flex items-center gap-3 p-2 rounded-lg group hover:bg-[#03045E] ${
-                        className={`${baseItem} p-2 hover:bg-[#03045E] ${
-                            inbox ? "bg-[#03045E]  hover:bg-[#0077B6]!" : ""
-                        } ${!isOpen && inbox ? "p-3" : ""}`}
-                        //       inbox ? "bg-[#03045E] hover:bg-[#0077B6]!" : ""
-                        //   }`}
-                    >
-                        <InboxOutlinedIcon
-                            className={`${iconClass} text-[#03045E] group-hover:text-white ${
-                                inbox ? "text-white" : ""
-                            }`}
-                        />
-                        {isOpen && (
-                            <span
-                                className={`${inbox ? "text-white" : "text-[#03045E] group-hover:text-white"}`}
-                            >Inbox
-                        </span>
-                        )}
-                    </Link>
-
-                    <Link
-                        href="/mail/starred"
-                        className={`${iconClass} p-2 hover:bg-[#03045E] ${
-                            starred ? "bg-[#03045E] hover:bg-[#0077B6]!" : ""
-                        } ${!isOpen && starred ? "p-3" : ""}`}
-                    >
-                        <StarBorderOutlinedIcon className={`${iconClass} text-[#03045E] group-hover:text-white ${
-                            starred ? "text-white" : ""
-                        }`}
-                        />
-                        {isOpen && (
-                            <span
-                                className={`${starred ? "text-white" : "text-[#03045E] group-hover:text-white"}`}
-                            >
-                            Starred
-                        </span>
-                        )}
-                    </Link>
-
-                    <Link
-                        href="/mail/sent"
-                        className={`${baseItem} p-2 hover:bg-[#03045E] ${
-                            sent ? "bg-[#03045E] hover:bg-[#0077B6]!" : ""
-                        } ${!isOpen && sent ? "p-3" : ""}`}
-                    >
-                        <SendOutlinedIcon
-                            className={`${iconClass} text-[#03045E] group-hover:text-white ${
-                                sent ? "text-white" : ""
-                            }`}
-                        />
-                        {isOpen && (
-                            <span
-                                className={`${sent ? "text-white" : "text-[#03045E] group-hover:text-white"}`}
-                            >
-                            Sent
-                        </span>
-                        )}
-                    </Link>
+                    ))}
                 </nav>
             </aside>
+
+            {composeModalVisible && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div ref={modalRef} className="flex justify-center w-full max-w-225">
+                        <ComposeForm
+                            hideModal={() => setComposeModalVisible(false)}
+                            isModal={true}
+                            className="max-w-225"
+                            openForm={composeModalVisible}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
+
+const SidebarLink = ({ checkPath, Icon, path, setModal, isOpen }: SidebarLinkProps,) => {
+    return (
+        <Link
+            href={path === "compose" ? "" : `/mail/${path}`}
+            onClick={(e) => {
+                if (checkPath) {
+                    e.preventDefault();
+                } else {
+                    if (path === "compose") {
+                        setModal(true);
+                    }
+                }
+            }}
+            className={`${isOpen ? "w-full" : "w-fit"} p-2 rounded-lg group hover:bg-[#03045E] hover:text-white ${
+                checkPath ? "bg-[#03045E] hover:bg-[#0077B6]! text-white" : ""
+            }`}
+        >
+            <div className="flex flex-row items-center gap-4">
+                <Icon
+                    className={`w-7! h-7! text-[#03045E] group-hover:text-white ${
+                        checkPath ? "text-white" : ""
+                    }`}
+                />
+                {isOpen && <span className="capitalize">{path}</span>}
+            </div>
+
+        </Link>
+    );
+};
