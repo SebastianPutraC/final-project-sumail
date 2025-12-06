@@ -15,14 +15,16 @@ export interface MessageProps {
   senderId: string;
   senderEmail?: string;
   senderName?: string;
-  receiverId: string;
-  receiverEmail?: string;
+  receiverId: string[];
+  receiverEmail?: string[];
   replyFromMessageId?: string[] | string;
   title: string;
   content: string;
   sentDate: Date;
   starred?: boolean | undefined;
   history?: MessageProps[];
+  readId? : boolean | undefined;
+  activeId: string[];
 }
 
 export interface MessageListProps {
@@ -43,6 +45,7 @@ export interface Receiver {
   id?: string | undefined;
   email?: string | undefined;
   name?: string | undefined;
+  arrayId?: number | undefined;
 }
 
 export interface MessageData {
@@ -53,7 +56,7 @@ export interface MessageData {
 }
 
 export interface FormValues {
-  receiver: string;
+  receiver: string[];
   subject: string;
   content?: string;
 }
