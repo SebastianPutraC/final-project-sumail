@@ -44,7 +44,6 @@ jest.mock("react-toastify", () => ({
   },
 }));
 
-// 6. Mock Spinners
 jest.mock("react-spinners", () => ({
   ClipLoader: () => <div data-testid="clip-loader">Loading...</div>,
 }));
@@ -101,7 +100,6 @@ it("handles successful login", async () => {
     const passInput = screen.getByPlaceholderText("Password must be at least 8 characters");
     const loginButton = screen.getByRole("button", { name: "Login" });
 
-    // 2. Type into inputs
     await user.type(emailInput, "john");
     await user.type(passInput, "securePass123");
 

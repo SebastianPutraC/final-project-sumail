@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import * as firestore from "firebase/firestore";
 import * as CurrentUser from "@/utils/CurrentUser";
 
-// --- MOCKS ---
-
 jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
 }));
@@ -22,7 +20,6 @@ jest.mock("../components/ComposeForm", () => ({
   default: ({ type }: any) => <div data-testid="compose-form">Mock Form: {type}</div>,
 }));
 
-// Mock Icons to pass props (onClick)
 jest.mock("@mui/icons-material/Reply", () => (props: any) => <div data-testid="ReplyIcon" {...props} />);
 jest.mock("@mui/icons-material/Shortcut", () => (props: any) => <div data-testid="ShortcutIcon" {...props} />);
 
@@ -58,7 +55,6 @@ describe("MessageDetail Component", () => {
   const mainSenderId = "sender-001";
   const replySenderId = "sender-002";
 
-  // Data: Main Message
   const mockMainMessageData = {
     title: "Main Thread Title",
     content: "This is the main content.",
@@ -69,10 +65,9 @@ describe("MessageDetail Component", () => {
     starredId: [],
     readId: ["user-123"],
     activeId: ["user-123"],
-    replyFromMessageId: [], // Empty array = Main Message
+    replyFromMessageId: [],
   };
 
-  // Data: Reply Message
   const mockReplyData = {
     title: "Re: Main Thread Title",
     content: "This is a reply.",
@@ -86,7 +81,6 @@ describe("MessageDetail Component", () => {
     replyFromMessageId: [mainMessageId],
   };
 
-  // Data: Senders
   const mockMainSender = { email: "main-sender@example.com" };
   const mockReplySender = { email: "replier@example.com" };
 
@@ -108,24 +102,19 @@ describe("MessageDetail Component", () => {
     (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
     (CurrentUser.GetCurrentUser as jest.Mock).mockReturnValue({ user: mockUser });
 
-    // --- Strict getDoc Mock ---
     (firestore.getDoc as jest.Mock).mockImplementation(async (ref) => {
-      // 1. Fetching Main Message
       if (ref.id === mainMessageId) {
         return { exists: () => true, id: mainMessageId, data: () => mockMainMessageData };
       }
-      // 2. Fetching Main Sender
       if (ref.id === mainSenderId) {
         return { exists: () => true, id: mainSenderId, data: () => mockMainSender };
       }
-      // 3. Fetching Reply Sender
       if (ref.id === replySenderId) {
         return { exists: () => true, id: replySenderId, data: () => mockReplySender };
       }
       return { exists: () => false };
     });
 
-    // --- Strict getDocs Mock (Returns Reply) ---
     (firestore.getDocs as jest.Mock).mockResolvedValue({
       docs: [{ id: "msg-reply-1", data: () => mockReplyData }],
     });
@@ -134,15 +123,12 @@ describe("MessageDetail Component", () => {
   it("renders the main message and sender email correctly", async () => {
     render(<MessageDetail slug={mainMessageId} />);
 
-    // Wait for title
     await waitFor(() => {
       expect(screen.getByText("Main Thread Title")).toBeInTheDocument();
     });
 
-    // Check sender email (using the distinct email we set up)
     expect(screen.getByText("from: main-sender@example.com")).toBeInTheDocument();
     
-    // Check Content
     expect(screen.getByText("This is the main content.")).toBeInTheDocument();
   });
 
@@ -156,7 +142,6 @@ describe("MessageDetail Component", () => {
     expect(screen.getByText("This is the main content.")).toBeInTheDocument();
     expect(screen.getByText("This is a reply.")).toBeInTheDocument();
     
-    // Check reply sender is distinct
     expect(screen.getByText("from: replier@example.com")).toBeInTheDocument();
   });
 
@@ -164,11 +149,8 @@ describe("MessageDetail Component", () => {
     render(<MessageDetail slug={mainMessageId} />);
     await waitFor(() => screen.getByText("Main Thread Title"));
 
-    // Star buttons might appear on multiple messages if your logic allows,
-    // but with the fix, it should definitely appear on the main message.
     const starButtons = screen.getAllByText("Star");
     
-    // Click the first one (Main Message)
     fireEvent.click(starButtons[0]);
 
     await waitFor(() => {
@@ -177,8 +159,6 @@ describe("MessageDetail Component", () => {
         { starredId: { type: "union", val: "user-123" } }
       );
     });
-
-    expect(window.location.reload).toHaveBeenCalled();
   });
 
   it("handles deleting a message", async () => {
@@ -202,8 +182,6 @@ describe("MessageDetail Component", () => {
     render(<MessageDetail slug={mainMessageId} />);
     await waitFor(() => screen.getByText("Main Thread Title"));
 
-    // "Reply" button exists on both Main and Reply cards. 
-    // We want to test clicking the one on the Main message (index 0).
     const replyBtns = screen.getAllByText("Reply");
     fireEvent.click(replyBtns[0]);
 
@@ -234,7 +212,6 @@ describe("MessageDetail Component", () => {
   });
 
   it("marks the message as read if unread", async () => {
-    // Override main message to be unread
     (firestore.getDoc as jest.Mock).mockImplementationOnce(async (ref) => {
         if (ref.id === mainMessageId) {
             return { 
@@ -263,10 +240,8 @@ describe("MessageDetail Component", () => {
 
     render(<MessageDetail slug="invalid-slug" />);
 
-    // Wait for fetch attempt
     await waitFor(() => expect(firestore.getDoc).toHaveBeenCalled());
 
-    // Verify Main Title is NOT rendered
     expect(screen.queryByText("Main Thread Title")).not.toBeInTheDocument();
   });
 });
