@@ -9,7 +9,7 @@ import {
     where,
     query,
     updateDoc,
-    getDoc, doc,
+    getDoc, doc, getDocs, limit,
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -30,7 +30,7 @@ interface ComposeFormProps {
   className?: string;
   openForm?: boolean;
 }
-
+let inputId = 0
 export default function ComposeForm({
   type,
   defaultData,
@@ -43,9 +43,9 @@ export default function ComposeForm({
   const [allUsers, setAllUsers] = useState<Receiver[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [suggestions, setSuggestions] = useState<Receiver[]>([]);
-  const [selectedReceiver, setSelectedReceiver] = useState<Receiver | string>();
+  const [selectedReceiver, setSelectedReceiver] = useState<Receiver[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  console.log("dd", defaultData);
+  //console.log("dd", defaultData);
 
   const router = useRouter();
   const { user } = GetCurrentUser();
@@ -58,7 +58,7 @@ export default function ComposeForm({
   } = useForm({
     mode: "onChange",
     resolver: yupResolver(composeSchema),
-    defaultValues: { receiver: "", subject: "", content: "" },
+    defaultValues: { receiver: [], subject: "", content: "" },
   });
 
   const handleSearch = (value: string) => {
@@ -88,25 +88,25 @@ export default function ComposeForm({
   };
 
   const handleSelect = (user: Receiver) => {
-    setSelectedReceiver(user);
-    setValue("receiver", String(user.email));
+      inputId = inputId + 1
+      user.arrayId = inputId;
+      setSelectedReceiver(prevReceiver => [...prevReceiver, user]);
+    setValue("receiver", [...selectedReceiver, user]);
     setSearchInput("");
     setSuggestions([]);
+    console.log(selectedReceiver);
   };
 
   async function onSubmit(data: FormValues) {
-      if (typeof selectedReceiver === "string") {
-          //Check the id from the email
-      }
+      const isSender= selectedReceiver.some(item => item.email === user.email);
+
     const payload = {
       senderId: user.id,
       senderEmail: user.email,
       receiverId:
-        typeof selectedReceiver !== "string" ? selectedReceiver?.id : null,
+        selectedReceiver.map(u => u.id).filter(u => u),
       receiverEmail:
-        typeof selectedReceiver !== "string"
-          ? selectedReceiver?.email
-          : selectedReceiver,
+        selectedReceiver.map(u => u.email).filter(u => u),
       title: data.subject,
       content: data.content,
       replyFromMessageId:
@@ -116,7 +116,8 @@ export default function ComposeForm({
       sentDate: Timestamp.fromDate(new Date()),
       starredId: ["0"],
         readId: ["0"],
-        activeId: [user.id, typeof selectedReceiver !== "string" ? selectedReceiver?.id : null]
+        activeId: isSender ? [...selectedReceiver.map(u => u.id).filter(u => u)]
+            : [user.id, ...selectedReceiver.map(u => u.id).filter(u => u)],
     };
     console.log("pay", payload);
 
@@ -194,11 +195,15 @@ export default function ComposeForm({
 
   useEffect(() => {
     if (type === "reply") {
-      setValue("receiver", defaultData?.senderEmail ?? "");
-      setSelectedReceiver({
-        id: defaultData?.senderId,
-        email: defaultData?.senderEmail,
-      });
+        const senderReceiver : Receiver =
+            {name : defaultData?.senderName,
+            email : defaultData?.senderEmail,
+            id : defaultData?.senderId};
+      setValue("receiver", [senderReceiver.email]);
+      setSelectedReceiver(
+          //Sender info
+          [senderReceiver]
+      );
       setValue("subject", defaultData?.title ?? "");
       setValue("content", "");
     } else if (type === "forward") {
@@ -251,35 +256,33 @@ ${h.content}
 
       setValue("subject", `Fwd: ${defaultData?.title}`);
       setValue("content", fullForwardContent);
-      setValue("receiver", "");
-      setSelectedReceiver(undefined);
+      setValue("receiver", []);
+      setSelectedReceiver([]);
     }
   }, [type, defaultData, setValue, setSelectedReceiver]);
-  console.log("dh", defaultData?.history);
+  //console.log("dh", defaultData?.history);
 
   useEffect(() => {
-    if (selectedReceiver === undefined) return;
+    if (selectedReceiver.length === 0) return;
 
     setValue(
       "receiver",
-      typeof selectedReceiver === "string"
-        ? selectedReceiver
-        : selectedReceiver?.email || "",
+      [],
       { shouldValidate: true }
     );
   }, [selectedReceiver, setValue]);
 
   useEffect(() => {
     if (!openForm) {
-      setValue("receiver", "");
+      setValue("receiver", []);
       setValue("subject", "");
       setValue("content", "");
-      setSelectedReceiver(undefined);
+      setSelectedReceiver([]);
       clearErrors();
     }
   }, [openForm, clearErrors, setValue]);
 
-  console.log(defaultData);
+  //console.log(defaultData);
 
   if (!openForm) return;
   return (
@@ -312,25 +315,31 @@ ${h.content}
                 <label className="font-medium text-nowrap w-20 mr-3">
                   {type === "forward" ? "Forward To" : "Send To"}
                 </label>
-
-                {/* Selected receiver pill */}
-                {selectedReceiver && (
-                  <div className="flex items-center gap-2 bg-blue-100 text-blue-700 px-2 rounded-full w-fit">
-                    {typeof selectedReceiver === "string"
-                      ? selectedReceiver
-                      : selectedReceiver.email}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedReceiver(undefined);
-                        setValue("receiver", "");
-                      }}
-                      className="text-sm ml-1 hover:text-red-600"
-                    >
-                      ×
-                    </button>
+                  <div>
+                      {selectedReceiver.map((item) => (
+                          <div key={item.arrayId}>
+                              <div className="flex items-center gap-2 bg-blue-100 text-blue-700 px-2 rounded-full w-fit">
+                                  {item.email}
+                                  <button
+                                      type="button"
+                                      onClick={() => {
+                                          const filteredArray =
+                                              selectedReceiver.filter(receiver => receiver.arrayId !== item.arrayId)
+                                          setSelectedReceiver(filteredArray);
+                                          setValue("receiver", [filteredArray]);
+                                      }}
+                                      className="text-sm ml-1 hover:text-red-600"
+                                  >
+                                      ×
+                                  </button>
+                              </div>
+                          </div>
+                      ))}
                   </div>
-                )}
+                {/* Selected receiver pill */}
+                {/*selectedReceiver && (
+
+                )*/}
 
                 {/* Search input */}
                 <input
@@ -338,11 +347,30 @@ ${h.content}
                   onChange={(e) => {
                     handleSearch(e.target.value);
                   }}
-                  onKeyDown={(e) => {
+                  onKeyDown={async (e) => {
                     if (e.key === "Enter") {
-                      setSelectedReceiver(searchInput);
+                        inputId = inputId + 1
+                        const emailQuery = query(
+                            collection(firebase.db, "users"),
+                            where("email", "==", searchInput),
+                            limit(1)
+                        );
+
+                        const snap = await getDocs(emailQuery);
+                        const newInput: Receiver = {
+                            email: searchInput,
+                            arrayId: inputId,
+                        }
+                        if (snap.docs.length > 0) {
+                            newInput.id = snap.docs[0].id;
+                            newInput.name = snap.docs[0].data().name;
+                        }
+
+                        setSelectedReceiver(prevReceiver => [...prevReceiver, newInput]);
+                        setValue("receiver", [...selectedReceiver, user]);
                       setSearchInput("");
                       setSuggestions([]);
+                      console.log(selectedReceiver);
                     }
                   }}
                   type="text"

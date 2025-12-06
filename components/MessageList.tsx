@@ -81,9 +81,9 @@ export function MessageList({ user, type }: MessageListProps) {
           ? "senderId"
           : type === "starred"
           ? "starredId"
-          : "receiverEmail",
+          : "receiverId",
         type === "sent" ? "==" : "array-contains",
-        type === "inbox" ? user.email : user.id
+        user.id
       ),
       where("replyFromMessageId", "==", ""),
     );
