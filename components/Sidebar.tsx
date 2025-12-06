@@ -102,7 +102,7 @@ const SidebarLink = ({ checkPath, Icon, path, setModal, isOpen }: SidebarLinkPro
                         checkPath ? "text-white" : ""
                     }`}
                 />
-                {isOpen && <span className="capitalize">{path}</span>}
+                {isOpen && <span className="capitalize transition-all duration-300">{path}</span>}
             </div>
 
         </Link>

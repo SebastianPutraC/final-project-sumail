@@ -179,7 +179,7 @@ export function MessageList({ user, type }: MessageListProps) {
           <span>Items per page</span>
           <select
             onChange={(e) => setLimit(Number(e.target.value))}
-            className="text-md"
+            className="text-md cursor-pointer"
           >
             {limitOptions.map((opt, index) => {
               return (
@@ -194,7 +194,7 @@ export function MessageList({ user, type }: MessageListProps) {
         {/* Pagination */}
         <div className="flex items-center gap-3 text-nowrap">
           <KeyboardArrowLeftIcon
-            className={`w-6! h-6! ${safePage === 0 ? "text-gray-400" : ""}`}
+            className={`w-6! h-6! ${safePage === 0 ? "text-gray-400" : "cursor-pointer"}`}
             onClick={() => {
                 if ((page - 1) < 0)
                     return
@@ -207,7 +207,7 @@ export function MessageList({ user, type }: MessageListProps) {
 
           <KeyboardArrowLeftIcon
             className={`rotate-180 w-6! h-6! ${
-              safePage === maxPage ? "text-gray-400" : ""
+              safePage === maxPage ? "text-gray-400" : "cursor-pointer"
             }`}
             onClick={() => setPage(safePage + 1)}
           />
