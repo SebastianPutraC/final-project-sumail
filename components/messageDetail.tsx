@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import firebase from "../firebase/firebaseConfig"
 import { useRouter } from "next/navigation"; // 1. Import useRouter
+import ComposeForm from "@/components/ComposeForm";
 
 interface MessageProps {
     id: string;
@@ -23,6 +24,13 @@ export default function MessageDetail(slug: SlugProps) {
     const router = useRouter(); // 3. Initialize Router
     const [message, setMessage] = useState<MessageProps>();
     const [errorMessage, setErrorMessage] = useState("");
+    const [composeModalVisible, setComposeModalVisible] = useState(false);
+    const showComposeModal = () => {
+        setComposeModalVisible(true);
+    };
+    const hideComposeModal = () => {
+        setComposeModalVisible(false);
+    };
 
     useEffect(() => {
         const getDetail = async () => {
@@ -82,7 +90,8 @@ export default function MessageDetail(slug: SlugProps) {
         });
 
         // Navigate to Compose page with data
-        router.push(`/user/compose?${params.toString()}`);
+        //router.push(`/user/compose?${params.toString()}`);
+        showComposeModal()
     }
 
     const forwardMessage = () => {
@@ -96,11 +105,14 @@ export default function MessageDetail(slug: SlugProps) {
         });
 
         // Navigate to Compose page
-        router.push(`/user/compose?${params.toString()}`);
+        //router.push(`/user/compose?${params.toString()}`);
+        showComposeModal()
     }
 
     return (
         <>
+            {composeModalVisible &&
+                <ComposeForm hideModal={hideComposeModal} />}
             <div className="listContainer">
                 {errorMessage ? (
                     <p style={{ color: 'red' }}>{errorMessage}</p>
