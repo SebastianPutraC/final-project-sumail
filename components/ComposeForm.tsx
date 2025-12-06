@@ -130,6 +130,7 @@ export default function ComposeForm({
         setTimeout(() => {
           router.push("/mail/sent");
         }, 1000);
+        hideModal && hideModal();
       }
       else {
           if (payload.replyFromMessageId[0]) {
@@ -315,7 +316,7 @@ ${h.content}
                 <label className="font-medium text-nowrap w-20 mr-3">
                   {type === "forward" ? "Forward To" : "Send To"}
                 </label>
-                  <div>
+                  <div className="flex flex-row">
                       {selectedReceiver.map((item) => (
                           <div key={item.arrayId}>
                               <div className="flex items-center gap-2 bg-blue-100 text-blue-700 px-2 rounded-full w-fit">
