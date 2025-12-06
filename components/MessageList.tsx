@@ -195,7 +195,10 @@ export function MessageList({ user, type }: MessageListProps) {
         <div className="flex items-center gap-3 text-nowrap">
           <KeyboardArrowLeftIcon
             className={`w-6! h-6! ${safePage === 0 ? "text-gray-400" : ""}`}
-            onClick={() => setPage(safePage - 1)}
+            onClick={() => {
+                if ((page - 1) < 0)
+                    return
+                setPage(safePage - 1)}}
           />
 
           <span className="text-sm font-medium">
