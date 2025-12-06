@@ -199,7 +199,8 @@ export default function ComposeForm({
         const senderReceiver : Receiver =
             {name : defaultData?.senderName,
             email : defaultData?.senderEmail,
-            id : defaultData?.senderId};
+            id : defaultData?.senderId,
+            arrayId : inputId};
       setValue("receiver", [senderReceiver.email]);
       setSelectedReceiver(
           //Sender info
