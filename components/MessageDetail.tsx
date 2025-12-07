@@ -246,7 +246,7 @@ export default function MessageDetail(slug: SlugProps) {
 
           {/* Reply Forward Button */}
           <div className="flex gap-3">
-              {!m.replyFromMessageId && <button
+              {(!m.replyFromMessageId || m.replyFromMessageId.length === 0) && <button
                   type="button"
                   className="flex items-center gap-1 border-2 border-[#03045E] py-1 px-3 rounded-lg hover:bg-gray-100"
                   onClick={() => toggleStar(m.id, m.starred ?? false)
@@ -266,7 +266,7 @@ export default function MessageDetail(slug: SlugProps) {
                       {openHistory[m.id] ? "Hide History" : "Show History"}
                   </button>
               )}
-              {!m.replyFromMessageId && <button
+              {(!m.replyFromMessageId || m.replyFromMessageId.length === 0) && <button
                   type="button"
                   className="flex items-center gap-1 border-2 border-[#03045E] py-1 px-3 rounded-lg hover:bg-gray-100"
                   onClick={() => deleteMessage(m.id)

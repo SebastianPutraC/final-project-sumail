@@ -45,7 +45,7 @@ export default function Sidebar() {
 
     return (
         <div>
-            <aside className={`p-8 mr-6 bg-[#F7FDFE] shadow-md flex flex-col justify-start gap-10 transition-all duration-300 ${isOpen ? "w-50" : "w-25"} z-50 h-screen`}>
+            <aside className={`p-8 sticky top-0 mr-6 bg-[#F7FDFE] shadow-md flex flex-col justify-start gap-10 transition-all duration-300 ${isOpen ? "w-50" : "w-25"} z-50 h-screen`}>
                 {/* Burger */}
                 <MenuIcon className="w-9! h-9! ml-1 cursor-pointer" onClick={() => setIsOpen(!isOpen)} />
                 {/* Content */}
@@ -102,7 +102,7 @@ const SidebarLink = ({ checkPath, Icon, path, setModal, isOpen }: SidebarLinkPro
                         checkPath ? "text-white" : ""
                     }`}
                 />
-                {isOpen && <span className="capitalize">{path}</span>}
+                {isOpen && <span className="capitalize transition-all duration-300">{path}</span>}
             </div>
 
         </Link>
